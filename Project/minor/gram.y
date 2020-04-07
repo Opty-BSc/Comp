@@ -40,21 +40,21 @@ file        : program
             | module
             ;
 
-program     : PROGRAM optdeclargs START body END
+program     : PROGRAM optdecls START body END
             ;
 
-module      : MODULE optdeclargs END
+module      : MODULE optdecls END
             ;
 
-optdeclargs :
-            | declargs
+optdecls    :
+            | declseq
             ;
 
-declargs    : decl
-            | declargs ';' decl
+declseq     : declaration
+            | declseq ';' declaration
             ;
 
-decl        : qualifier optconst variable optassign
+declaration : qualifier optconst variabledef
             | function
             ;
 
@@ -67,24 +67,31 @@ optconst    :
             | CONST
             ;
 
-variable    : type ID optarray
+variable    : ARRAY ID '[' INT ']'
+            | NUMBER ID
+            | STRING ID
             ;
 
-type        : NUMBER
-            | ARRAY
-            | STRING
+variabledef : ARRAY ID '[' INT ']' arrassign
+            | NUMBER ID numassign
+            | STRING ID strassign
             ;
 
-optarray    :
-            | '[' INT ']'
+arrassign   :
+            | ASSIGN intseq
             ;
 
-optassign   :
-            | ASSIGN literalargs
+intseq      : INT
+            | intseq ',' INT
             ;
 
-literalargs : literal
-            | literalargs ',' literal
+numassign   :
+            | ASSIGN INT
+            ;
+
+strassign   :
+            | ASSIGN literal literals
+            | ASSIGN STR
             ;
 
 literal     : STR
@@ -96,19 +103,21 @@ literals    : literal
             | literals literal
             ;
 
-function    : FUNCTION qualifier functype ID optvarags funcbody
+function    : FUNCTION qualifier functype ID optfuncargs funcbody
             ;
 
-functype    : type
-            | VOID
+functype    : VOID
+            | NUMBER
+            | ARRAY
+            | STRING
             ;
 
-varargs     : variable
-            | varargs ';' variable
+funcargs    : variable
+            | funcargs ';' variable
             ;
 
-optvarags   :
-            | varargs
+optfuncargs :
+            | funcargs
             ;
 
 funcbody    : DONE
@@ -174,7 +183,7 @@ rvalue      : lvalue
             | rvalue '%' rvalue
             | rvalue '+' rvalue
             | rvalue '-' rvalue
-	        | rvalue '<' rvalue
+            | rvalue '<' rvalue
             | rvalue '>' rvalue
             | rvalue LE rvalue
             | rvalue GE rvalue
