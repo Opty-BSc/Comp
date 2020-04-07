@@ -36,32 +36,35 @@ int yyerror(char *s);
 %token VOID CONST NUMBER ARRAY STRING FUNCTION PUBLIC FORWARD
 %token IF THEN ELSE ELIF FI FOR UNTIL STEP DO DONE REPEAT STOP RETURN
 %%
-
 file        : program
             | module
             ;
 
-program     : PROGRAM optdeclseq START body END
+program     : PROGRAM optdeclargs START body END
             ;
 
-module      : MODULE optdeclseq END
+module      : MODULE optdeclargs END
             ;
 
-optdeclseq  :
-            | declseq
+optdeclargs :
+            | declargs
             ;
 
-declseq     : decl
-            | declseq ';' decl
+declargs    : decl
+            | declargs ';' decl
             ;
 
-decl        : function
-            | qualifier optconst variable optassign
+decl        : qualifier optconst variable optassign
+            | function
             ;
 
 qualifier   :
             | PUBLIC
             | FORWARD
+            ;
+
+optconst    :
+            | CONST
             ;
 
 variable    : type ID optarray
@@ -76,42 +79,36 @@ optarray    :
             | '[' INT ']'
             ;
 
-optconst    :
-            | CONST
-            ;
-
 optassign   :
-            | ASSIGN literalseq
+            | ASSIGN literalargs
             ;
 
-literalseq  : literal
-            | literalseq ',' literal
+literalargs : literal
+            | literalargs ',' literal
             ;
 
-literal     : STR chain
-            | INT chain
-            | CHAR chain
+literal     : STR
+            | INT
+            | CHAR
             ;
 
-chain       :
-            | chain STR
-            | chain INT
-            | chain CHAR
+literals    : literal
+            | literals literal
             ;
 
-function    : FUNCTION qualifier functype ID funcargs funcbody
+function    : FUNCTION qualifier functype ID optvarags funcbody
             ;
 
 functype    : type
             | VOID
             ;
 
-funcargs    :
-            | varseqlist
+varargs     : variable
+            | varargs ';' variable
             ;
 
-varseqlist  : variable
-            | varseqlist ';' variable
+optvarags   :
+            | varargs
             ;
 
 funcbody    : DONE
@@ -123,6 +120,13 @@ body        : varseq instrblock
 
 varseq      :
             | varseq variable ';'
+            ;
+
+instrblock  : instrseq lastinstr
+            ;
+
+instrseq    :
+            | instrseq instr
             ;
 
 instr       : IF rvalue THEN instrblock instrelif instrelse FI
@@ -143,17 +147,10 @@ rsugar      : ';'
             | '!'
             ;
 
-endinstr    :
+lastinstr   :
             | REPEAT
             | STOP
             | RETURN optrvalue
-            ;
-
-instrblock  : instrseq endinstr
-            ;
-
-instrseq    :
-            | instrseq instr
             ;
 
 optrvalue   :
@@ -165,7 +162,7 @@ lvalue      : ID
             ;
 
 rvalue      : lvalue
-            | literal
+            | literals
             | '(' rvalue ')'
             | rvalue '(' rargs ')'
             | '?'
@@ -192,7 +189,6 @@ rvalue      : lvalue
 rargs       : rvalue
             | rargs ',' rvalue
             ;
-
 %%
 char **yynames =
 #if YYDEBUG > 0
