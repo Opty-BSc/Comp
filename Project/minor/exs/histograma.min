@@ -1,7 +1,7 @@
 program
 function void cruzes number x do
 	if x > 50 then
-		"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX...\n"!
+		"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..."!
 	else
 		if x > 0 then
 			for 0 until x = 0 step x := x - 1 do "X"! done
@@ -24,18 +24,18 @@ start
 	number i;
 
 	if argc < 4 then
-		"USAGE: histograma lower-limit upper-limit step [random]\n"!
+		"USAGE: histograma lower-limit upper-limit step [random]"!
 		return 1
 	fi
 	lower := atoi(argv(1));
 	upper := atoi(argv(2));
 	if lower >= upper then
-		"invalid argument: lower >= upper\n"!
+		"invalid argument: lower >= upper"!
 		return 2
 	fi
 	slot := atoi(argv(3));
 	if slot <= 0 then
-		"invalid argument: step <= 0\n"!
+		"invalid argument: step <= 0"!
 		return 2
 	fi
 	val := (upper-lower+1)/slot;
@@ -44,7 +44,7 @@ start
 	if argc > 4 then
 		rand := atoi(argv(4));
 		if rand <= 0 then
-			"invalid argument: rand <= 0\n"!
+			"invalid argument: rand <= 0"!
 			return 2
 		fi
 		for 0 until rand = 0 step rand := rand - 1 do
@@ -59,6 +59,6 @@ start
 	fi
 	for val := lower until val > upper step val := val + slot do
 		tab[(val-lower)/slot]!  " de "!  val!  " a "!  val+slot-1!
-		": "!  cruzes(tab[(val-lower)/slot]); "\n"!
+		": "!  cruzes(tab[(val-lower)/slot]); ""!
 	done
 end

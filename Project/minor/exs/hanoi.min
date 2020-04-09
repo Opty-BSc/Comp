@@ -1,5 +1,5 @@
 program
-function void movedisk number from; number to do from! " -> "! to! "\n"! ;
+function void movedisk number from; number to do from! " -> "! to! ""! ;
 function void movetower number height; number from; number to; number using do
 	if height > 0 then
 		movetower(height - 1, from, using, to);

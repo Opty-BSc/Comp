@@ -14,7 +14,7 @@ program
 	function forward string argv number n done
 start
 	if argc < 3 then
-		"USAGE: hondt eleger votos1 [votos2 [votos3 ...]]\n"!
+		"USAGE: hondt eleger votos1 [votos2 [votos3 ...]]"!
 		return 1
 	fi
 
@@ -22,7 +22,7 @@ start
 	eleger := atoi(argv(1));
 	for i := 2 until i = argc step i := i + 1 do
 		if i = PARTIDOS then
-			"partidos em excesso (max="! PARTIDOS! ")\n"!
+			"partidos em excesso (max="! PARTIDOS! ")"!
 			return 2
 		fi
 		votos[i-2] := atoi(argv(i));
@@ -45,6 +45,6 @@ start
 
 	$ output results $
 	for i := 0 until i = partidos step i := i + 1 do
-		"partido "! i! " com "! deputados[i]! " deputados ("! votos[i]! " votos)\n"!
+		"partido "! i! " com "! deputados[i]! " deputados ("! votos[i]! " votos)"!
 	done
 end

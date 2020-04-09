@@ -1,6 +1,6 @@
 program
 start
-  "olá pessoal!\n"!
+  "olá pessoal!"!
 end
 
 A partir daqui pode haver texto ( de qualquer tipo ), incluindo operadores,

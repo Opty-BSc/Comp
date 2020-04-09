@@ -9,7 +9,7 @@ start
 	s # 100;
 	readln(s, 100);
 	len := strlen(s);
-	if len ~= 10 then "wrong length!\n"! return 1 fi
+	if len ~= 10 then "wrong length!"! return 1 fi
 	for i := 0 until i = len -1 step i := i + 1 do
 		soma := soma + (i+1) * (s[i] - '0');
 	done
@@ -19,8 +19,8 @@ start
 		soma := soma + 10 * (s[i] - '0');
 	fi
 	if soma % 11 = 0 then
-		"ISBN ok!\n"!
+		"ISBN ok!"!
 	else
-		"wrong ISBN!\n"!
+		"wrong ISBN!"!
 	fi
 end
