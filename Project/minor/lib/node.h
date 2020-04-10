@@ -1,6 +1,6 @@
 /* $Id: node.h,v 1.4 2012/09/12 17:24:33 prs Exp $ */
-#ifndef __NODE_H__ 
-#define __NODE_H__ 
+#ifndef __NODE_H__
+#define __NODE_H__
 
 #include <stdio.h> /* for FILE argument to printNode and scanNode */
 
@@ -14,33 +14,33 @@ typedef int regint;
 #endif
 
 
-typedef enum { nodeNil, nodeInt, nodeStr, nodeReal, nodeData, nodeOpr } NodeType; 
-typedef enum { nodeUser = 1, nodeLine = 2, nodeState = 4, nodeInfo = 8, nodePlace = 16 } NodeTag; 
- 
+typedef enum { nodeNil, nodeInt, nodeStr, nodeReal, nodeData, nodeOpr } NodeType;
+typedef enum { nodeUser = 1, nodeLine = 2, nodeState = 4, nodeInfo = 8, nodePlace = 16 } NodeTag;
+
 typedef struct typeNode Node;
-struct typeNode { 
-    NodeType type;		/* type of node */ 
-    void *user;			/* pointer to any user data */ 
-    int   attrib;		/* user defined attributes */
-    int   line;			/* input file parse line */
-    void *state;		/* for the instruction selector (burg) */ 
-    int   info;			/* specific info such as type or register used */
-    void (*listen)(Node*);	/* listener */
-    long  place;		/* location information */
+struct typeNode {
+    NodeType type;          /* type of node */ 
+    void *user;             /* pointer to any user data */
+    int attrib;             /* user defined attributes */
+    int line;               /* input file parse line */
+    void *state;            /* for the instruction selector (burg) */
+    int info;               /* specific info such as type or register used */
+    void (*listen)(Node*);  /* listener */
+    long place;             /* location information */
     union {
-      regint i;			/* value of literal integer */ 
-      double r;			/* value of literal real number */ 
-      char *s;			/* value of literal string (null terminated) */ 
-      struct {
-	int size;		/* size of data */
-	void *data;		/* pointer to data */ 
-      } d;			/* value of any opaque data (untyped) */
-      struct {
-	unsigned num;		/* number of subnodes in this node */
-	Node *n[1];  		/* subnodes (expandable) */ 
-      } sub;
+        regint i;           /* value of literal integer */
+        double r;           /* value of literal real number */
+        char *s;            /* value of literal string (null terminated) */
+        struct {
+            int size;       /* size of data */
+            void *data;     /* pointer to data */
+        } d;                /* value of any opaque data (untyped) */
+        struct {
+            unsigned num;   /* number of subnodes in this node */
+            Node *n[1];     /* subnodes (expandable) */
+        } sub;
     } value;
-}; 
+};
 
 /* prototypes */
 Node *uniNode(int attrib, Node *n1);
@@ -85,5 +85,5 @@ extern int debugNode;
 #define STATE_LABEL(p) ((p)->state)
 #define PLACE(p) ((p)->info)
 #define SUB(x)	value.sub.n[x]
- 
+
 #endif /* __NODE_H__ */

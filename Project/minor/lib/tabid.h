@@ -3,19 +3,20 @@
 #define _TABID_H_
 
 typedef int (*IDfunc)(int,char*,void*,void*);
-void   *IDroot(void *swap);
-void	IDpop(void),
-	IDpush(void),
-	IDclear(void),
-	IDprint(int,int);
+void *IDroot(void*);
+void IDadd(int,char*,void*),
+IDpop(void),
+IDpush(void),
+IDclear(void),
+IDprint(int,int);
 int	IDnew(int,char*,void*),
-	IDreplace(int,char*,void*),
-	IDchange(int,char*,void*,int),
-	IDinsert(int,int,char*,void*),
-	IDfind(char*,void**),
-	IDsearch(char*,void**,int,int),
-	IDforall(IDfunc,void*,int,int),
-	IDlevel(void);
+IDreplace(int,char*,void*),
+IDchange(int,char*,void*,int),
+IDinsert(int,int,char*,void*),
+IDfind(char*,void**,int),
+IDsearch(char*,void**,int,int),
+IDforall(IDfunc,void*,int,int),
+IDlevel(void);
 
 extern int IDdebug; /* set to 1 to get debug message in stdout */
 
