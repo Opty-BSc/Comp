@@ -53,7 +53,7 @@ char buf[120] = "";
 %right '^'
 %nonassoc ADDR UMINUS '?'
 %nonassoc ID
-%nonassoc '[' ']' '(' ')'
+%nonassoc '(' ')' '[' ']'
 
 %token <i> INT
 %token <c> CHAR
