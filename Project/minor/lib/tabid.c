@@ -132,7 +132,6 @@ int IDfind(char *s, void **attrib, int skip) {
         while (aux->name != 0) aux = aux->next;
         aux = aux->next;
     }
-
     for (; aux != 0; aux = aux->next)
         if (aux->name != 0 && strcmp(aux->name, s) == 0) {
             if (attrib != 0 && attrib != ((void**)IDtest)) *attrib = aux->attrib;
@@ -156,10 +155,11 @@ int IDsearch(char *s, void **attrib, int skip, int lev) {
 
         } else if (aux->name == 0 && lev > 0 && --lev == 0)
             break; /* stop after 'lev' levels */
-            if (attrib != ((void**)IDtest)) {
-            sprintf(buf, "%s: undefined.", s);
-            yyerror(buf);
-        }
+
+    if (attrib != ((void**)IDtest)) {
+        sprintf(buf, "%s: undefined.", s);
+        yyerror(buf);
+    }
     return -1;
 }
 

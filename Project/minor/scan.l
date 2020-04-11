@@ -17,9 +17,9 @@ IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
 %x TEXT
 %%
 
-<INITIAL>^"program" BEGIN CODE; return PROGRAM;
-<INITIAL>^"module"  BEGIN CODE; return MODULE;
-<INITIAL>.|\n       ;/* Non Program / Module Content */
+<INITIAL,CODE>^"program"    BEGIN CODE; return PROGRAM;
+<INITIAL,CODE>^"module"     BEGIN CODE; return MODULE;
+<INITIAL>.|\n               ;/* Non Program / Module Content */
 
 <CODE>^"end"        BEGIN INITIAL; return END;
 <CODE>"$$".*\n      ;/* Explanatory Comments */
@@ -64,8 +64,7 @@ IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
 <TEXT>\\[t]     { yytext[yyleng-2] = '\t'; yytext[yyleng-1] = 0; yymore(); }
 <TEXT>\\[r]     { yytext[yyleng-2] = '\r'; yytext[yyleng-1] = 0; yymore(); }
 <TEXT>\\[\\"]   { yytext[yyleng-2] = yytext[yyleng-1]; yytext[yyleng-1] = 0; yymore(); }
-<TEXT>[^\\]     { yymore(); }
-<TEXT>.         { yyerror("Unknown Character"); }
+<TEXT>.		{ yymore(); }
 
 <CODE>\'\\[n]\'     { yylval.c = '\n'; return CHAR; }
 <CODE>\'\\[t]\'     { yylval.c = '\t'; return CHAR; }

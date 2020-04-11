@@ -5,7 +5,7 @@ UTIL=util
 LEX=flex
 YACC=byacc
 CC=gcc
-CFLAGS=-g -DYYDEBUG -DNODEDBUG -DIDDEBUG
+CFLAGS=-g -DYYDEBUG
 
 $(LANG): scan.l gram.y
 	make -C $(LIB)

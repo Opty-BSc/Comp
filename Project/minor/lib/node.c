@@ -18,8 +18,8 @@ Node *newNode(NodeType t, int attrib, unsigned nops) {
     /* allocate node */
     size = sizeof(Node) + (t == nodeOpr ? nops * sizeof(Node*) : 0);
     if ((p = malloc(size)) == NULL) {
-    yyerror("out of memory");
-    exit(2);
+        yyerror("out of memory");
+        exit(2);
     }
 
     /* copy information */
@@ -252,7 +252,8 @@ void freeNode(Node *p) {
         for (i = 0; i < p->value.sub.num; i++)
             freeNode(p->value.sub.n[i]);
     }
-    free (p);
+    if (p->type == nodeStr && p->value.s != NULL) free(p->value.s);
+    free(p);
 }
 
 int debugNode, infoNode, placeNode;
