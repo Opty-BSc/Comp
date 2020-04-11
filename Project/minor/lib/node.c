@@ -252,7 +252,6 @@ void freeNode(Node *p) {
         for (i = 0; i < p->value.sub.num; i++)
             freeNode(p->value.sub.n[i]);
     }
-    if (p->type == nodeStr && p->value.s != NULL) free(p->value.s);
     free(p);
 }
 
