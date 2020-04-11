@@ -88,10 +88,10 @@ dSEQOPT     :                       { $$ = nilNode(NIL); }
             | dSEQ                  { $$ = $1; }
             ;
 
-dSEQ        : declaration           { $$ = binNode(DECLS, $1, nilNode(NIL)); }
-            | error                 { $$ = binNode(DECLS, nilNode(ERROR), nilNode(NIL)); }
-            | dSEQ ';' declaration  { $$ = binNode(DECLS, $3, $1); }
-            | dSEQ ';' error        { $$ = binNode(DECLS, nilNode(ERROR), $1); }
+dSEQ        : declaration           { $$ = binNode(DECLS, nilNode(NIL), $1); }
+            | error                 { $$ = binNode(DECLS, nilNode(NIL), nilNode(ERROR)); }
+            | dSEQ ';' declaration  { $$ = binNode(DECLS, $1, $3); }
+            | dSEQ ';' error        { $$ = binNode(DECLS, $1, nilNode(ERROR)); }
             ;
 
 declaration : function                              { $$ = $1; }
@@ -133,14 +133,14 @@ literal     : STR               { $$ = strNode(STR, $1); PLACE($$) = S_TYPE; cnt
             | CHAR              { $$ = intNode(CHAR, $1); PLACE($$) = I_TYPE; cnt = 1; }
             ;
 
-literals    : literal literal   { $$ = binNodeT(LITERALS, $2,
-                                  binNodeT(LITERALS, $1, nilNode(NIL), S_TYPE), S_TYPE); cnt = 2; }
+literals    : literal literal   { $$ = binNodeT(LITERALS, binNodeT(LITERALS,
+                                  nilNode(NIL), $1, S_TYPE), $2, S_TYPE); cnt = 2; }
             | literals literal  { $$ = binNodeT(LITERALS, $1, $2, S_TYPE); cnt++; }
             ;
 
-integers    : INT ',' INT       { $$ = binNodeT(INTS, intNode(INT, $3),
-                                  binNodeT(INTS, intNode(INT, $1), nilNode(NIL), A_TYPE), A_TYPE); cnt = 2; }
-            | integers ',' INT  { $$ = binNodeT(INTS, intNode(INT, $3), $1, A_TYPE); cnt++; }
+integers    : INT ',' INT       { $$ = binNodeT(INTS, binNodeT(INTS, nilNode(NIL),
+                                  intNode(INT, $1), A_TYPE), intNode(INT, $3), A_TYPE); cnt = 2; }
+            | integers ',' INT  { $$ = binNodeT(INTS, $1, intNode(INT, $3), A_TYPE); cnt++; }
             ;
 
 function    : FUNCTION qualifier fType ID   { retType = $3; IDpush(); }
@@ -159,8 +159,8 @@ fParamsOPT  :                       { $$ = nilNode(NIL); }
             | fParams               { $$ = $1; }
             ;
 
-fParams     : variable              { VARput(0, 0, $1); $$ = binNode(PARAMS, $1, nilNode(NIL)); }
-            | fParams ';' variable  { VARput(0, 0, $3); $$ = binNode(PARAMS, $3, $1); }
+fParams     : variable              { VARput(0, 0, $1); $$ = binNode(PARAMS, nilNode(NIL), $1); }
+            | fParams ';' variable  { VARput(0, 0, $3); $$ = binNode(PARAMS, $1, $3); }
             ;
 
 fBody       : DONE                  { $$ = nilNode(DONE); }
@@ -171,15 +171,15 @@ body        : vSEQ iSEQ iLast       { $$ = binNode(BODY, $1, binNode(BLOCK, $2, 
             ;
 
 vSEQ        :                       { $$ = nilNode(NIL); }
-            | vSEQ variable ';'     { VARput(0, 0, $2); $$ = binNode(VARS, $2, $1); }
-            | vSEQ error ';'        { $$ = binNode(VARS, nilNode(ERROR), $1); }
+            | vSEQ variable ';'     { VARput(0, 0, $2); $$ = binNode(VARS, $1, $2); }
+            | vSEQ error ';'        { $$ = binNode(VARS, $1, nilNode(ERROR)); }
             ;
 
 iBlock      : { blck++; } iSEQ iLast    { blck--; $$ = binNode(BLOCK, $2, $3); }
             ;
 
 iSEQ        :                       { $$ = nilNode(NIL); }
-            | iSEQ instruction      { $$ = binNode(INSTRS, $2, $1); }
+            | iSEQ instruction      { $$ = binNode(INSTRS, $1, $2); }
             ;
 
 instruction : rValue iSugar                             { $$ = binNode(EXPR, $1, $2);
@@ -196,7 +196,7 @@ instruction : rValue iSugar                             { $$ = binNode(EXPR, $1,
             ;
 
 iElifSEQ    :                           { $$ = nilNode(NIL); }
-            | iElifSEQ iElif            { $$ = binNode(ELIFS, $2, $1); }
+            | iElifSEQ iElif            { $$ = binNode(ELIFS, $1, $2); }
             ;
 
 iElif       : ELIF rValue               { if (!isInt($2)) yyerror("['elif' Condition Type must be an Integer]"); }
@@ -311,30 +311,30 @@ rValue      : lValue                    { if (isFunc(PLACE($1))) $$ = $1;
                                           else yyerror("[Invalid Types to ':=']"); }
             ;
 
-rArgs       : rValue                    { $$ = binNode(PARAMS, $1, nilNode(NIL)); }
-            | rArgs ',' rValue          { $$ = binNode(PARAMS, $3, $1); }
+rArgs       : rValue                    { $$ = binNode(PARAMS, nilNode(NIL), $1); }
+            | rArgs ',' rValue          { $$ = binNode(PARAMS, $1, $3); }
             ;
 %%
 
 Node *nilNodeT(int tok, int info) {
 
-    Node *r = nilNode(tok);
-    PLACE(r) = info;
-    return r;
+    Node *n = nilNode(tok);
+    PLACE(n) = info;
+    return n;
 }
 
 Node *uniNodeT(int tok, Node *left, int info) {
 
-    Node *r = uniNode(tok, left);
-    PLACE(r) = info;
-    return r;
+    Node *n = uniNode(tok, left);
+    PLACE(n) = info;
+    return n;
 }
 
 Node *binNodeT(int tok, Node *left, Node *right, int info) {
 
-    Node *r = binNode(tok, left, right);
-    PLACE(r) = info;
-    return r;
+    Node *n = binNode(tok, left, right);
+    PLACE(n) = info;
+    return n;
 }
 
 void VARput(int qual, int cons, Node *var) {
@@ -388,25 +388,25 @@ Node *VARNode(int qual, int cons, Node *var, Node *init) {
     return binNode(DECL, var, init);
 }
 
-void checkArgs(char *id, Node *p, Node *args) {
+void checkArgs(char *id, Node *params, Node *args) {
 
-    if (OP_LABEL(p) != NIL && OP_LABEL(args) != NIL) {
+    if (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL) {
         do {
-            if (!sameType(PLACE(LEFT_CHILD(p)), PLACE(LEFT_CHILD(args)))) {
+            if (!sameType(PLACE(RIGHT_CHILD(params)), PLACE(RIGHT_CHILD(args)))) {
                 sprintf(buf, "[Invalid Parameter Types to Function '%s']", id);
                 yyerror(buf);
                 break;
             }
-            p = RIGHT_CHILD(p);
-            args = RIGHT_CHILD(args);
-            if (OP_LABEL(p) != OP_LABEL(args)) {
+            params = LEFT_CHILD(params);
+            args = LEFT_CHILD(args);
+            if (OP_LABEL(params) != OP_LABEL(args)) {
                 sprintf(buf, "[Invalid Parameters to Function '%s']", id);
                 yyerror(buf);
                 break;
             }
-        } while (OP_LABEL(p) != NIL && OP_LABEL(args) != NIL);
+        } while (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL);
 
-    } else if (OP_LABEL(p) != OP_LABEL(args)) {
+    } else if (OP_LABEL(params) != OP_LABEL(args)) {
         sprintf(buf, "[Invalid Parameters to Function '%s']", id);
         yyerror(buf);
     }
