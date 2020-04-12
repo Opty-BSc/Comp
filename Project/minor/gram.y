@@ -31,7 +31,7 @@
 int yylex();
 int yyerror(char *s);
 extern int errors;
-int cnt = 0;
+int alen = 0;
 int blck = 0;
 int cicl = 0;
 int retType = I_TYPE;
@@ -66,7 +66,7 @@ char buf[120] = "";
 %token IF THEN ELSE ELIF FI FOR UNTIL STEP DO DONE REPEAT STOP RETURN
 
 %type <n> program module dSEQOPT dSEQ declaration
-%type <n> variable vDimOPT vInitOPT literal literals integers
+%type <n> variable vDimOPT vInitOPT literal literalSEQ literals integerSEQ
 %type <n> function fParamsOPT fParams fBody body vSEQ
 %type <n> iBlock iSEQ instruction iElifSEQ iElif iElse iSugar iLast
 %type <n> rValueOPT lValue rValue rArgs
@@ -101,49 +101,50 @@ declaration : function                              { $$ = $1; }
             | qualifier constant variable vInitOPT  { $$ = VARNode($1, $2, $3, $4); }
             ;
 
-qualifier   :                   { $$ = 0; }
-            | PUBLIC            { $$ = P_TYPE; }
-            | FORWARD           { $$ = F_TYPE; }
+qualifier   :                       { $$ = 0; }
+            | PUBLIC                { $$ = P_TYPE; }
+            | FORWARD               { $$ = F_TYPE; }
             ;
 
-constant    :                   { $$ = 0; }
-            | CONST             { $$ = C_TYPE; }
+constant    :                       { $$ = 0; }
+            | CONST                 { $$ = C_TYPE; }
             ;
 
-variable    : type ID vDimOPT   { $$ = binNodeT(VAR, strNode(ID, $2), $3, $1);
-                                  if ($1 != A_TYPE && OP_LABEL($3) != NIL)
-                                  yyerror("[Invalid Variable Type to specify its dimension]"); }
+variable    : type ID vDimOPT       { $$ = binNodeT(VAR, strNode(ID, $2), $3, $1);
+                                      if ($1 != A_TYPE && OP_LABEL($3) != NIL)
+                                      yyerror("[Invalid Variable Type to specify its dimension]"); }
             ;
 
-type        : ARRAY             { $$ = A_TYPE; }
-            | NUMBER            { $$ = I_TYPE; }
-            | STRING            { $$ = S_TYPE; }
+type        : ARRAY                 { $$ = A_TYPE; }
+            | NUMBER                { $$ = I_TYPE; }
+            | STRING                { $$ = S_TYPE; }
             ;
 
-vDimOPT     :                   { $$ = nilNode(NIL); }
-            | '[' INT ']'       { $$ = intNode(DIM, $2);
-                                  if ($2 == 0) yyerror("[Array dimension must be > 0]"); }
+vDimOPT     :                       { $$ = nilNode(NIL); }
+            | '[' INT ']'           { $$ = intNode(DIM, $2);
+                                      if ($2 == 0) yyerror("[Array dimension must be > 0]"); }
             ;
 
-vInitOPT    :                   { $$ = nilNodeT(NIL, V_TYPE); cnt = 0; }
-            | ASSIGN literal    { $$ = uniNodeT(INIT, $2, PLACE($2)); }
-            | ASSIGN literals   { $$ = uniNodeT(INIT, $2, PLACE($2));}
-            | ASSIGN integers   { $$ = uniNodeT(INIT, $2, PLACE($2));}
+vInitOPT    :                               { $$ = nilNodeT(NIL, V_TYPE); alen = 0; }
+            | ASSIGN literals               { $$ = uniNodeT(INIT, $2, PLACE($2)); }
+            | ASSIGN integerSEQ ',' INT     { $$ = uniNodeT(INIT, binNodeT(INTS, $2, intNode(INT, $4), A_TYPE), A_TYPE); }
             ;
 
-literal     : STR               { $$ = strNode(STR, $1); PLACE($$) = S_TYPE; cnt = 1; }
-            | INT               { $$ = intNode(INT, $1); PLACE($$) = I_TYPE; cnt = 1; }
-            | CHAR              { $$ = intNode(CHAR, $1); PLACE($$) = I_TYPE; cnt = 1; }
+literal     : INT                   { $$ = intNode(INT, $1); PLACE($$) = I_TYPE; }
+            | STR                   { $$ = strNode(STR, $1); PLACE($$) = S_TYPE; }
+            | CHAR                  { $$ = intNode(CHAR, $1); PLACE($$) = I_TYPE; }
             ;
 
-literals    : literal literal   { $$ = binNodeT(LITERALS, binNodeT(LITERALS,
-                                  nilNode(NIL), $1, S_TYPE), $2, S_TYPE); cnt = 2; }
-            | literals literal  { $$ = binNodeT(LITERALS, $1, $2, S_TYPE); cnt++; }
+literalSEQ  : literal               { $$ = binNodeT(LITERALS, nilNode(NIL), $1, S_TYPE); }
+            | literalSEQ literal    { $$ = binNodeT(LITERALS, $1, $2, S_TYPE); }
             ;
 
-integers    : INT ',' INT       { $$ = binNodeT(INTS, binNodeT(INTS, nilNode(NIL),
-                                  intNode(INT, $1), A_TYPE), intNode(INT, $3), A_TYPE); cnt = 2; }
-            | integers ',' INT  { $$ = binNodeT(INTS, $1, intNode(INT, $3), A_TYPE); cnt++; }
+literals    : literal               { $$ = $1; alen = 1; }
+            | literalSEQ literal    { $$ = binNodeT(LITERALS, $1, $2, S_TYPE); }
+            ;
+
+integerSEQ  : INT                   { $$ = binNodeT(INTS, nilNode(NIL), intNode(INT, $1), A_TYPE); alen = 2; }
+            | integerSEQ ',' INT    { $$ = binNodeT(INTS, $1, intNode(INT, $3), A_TYPE); alen++; }
             ;
 
 function    : FUNCTION qualifier fType ID   { retType = $3; IDpush(); }
@@ -238,7 +239,6 @@ lValue      : ID                        { $$ = findID($1, (void **)IDtest);
 
 rValue      : lValue                    { if (isFunc(PLACE($1))) $$ = $1;
                                           else $$ = uniNodeT(LOAD, $1, toType(PLACE($1))); }
-            | literal                   { $$ = $1; }
             | literals                  { $$ = $1; }
             | ID '(' rArgs ')'          { $$ = CALLNode($1, $3); }
             | rValue '[' rValue ']'     { $$ = idxNode($1, $3); }
@@ -379,8 +379,8 @@ Node *VARNode(int qual, int cons, Node *var, Node *init) {
             if (OP_LABEL(RIGHT_CHILD(var)) == NIL) {
                 sprintf(buf, "[Array '%s' dimension must be specified when initialized]", id);
                 yyerror(buf);
-            } else if (RIGHT_CHILD(var)->value.i < cnt) {
-                sprintf(buf, "[Invalid Array '%s' dimension: %d < %d]", id, RIGHT_CHILD(var)->value.i, cnt);
+            } else if (RIGHT_CHILD(var)->value.i < alen) {
+                sprintf(buf, "[Invalid Array '%s' dimension: %d < %d]", id, RIGHT_CHILD(var)->value.i, alen);
                 yyerror(buf);
             }
         }
