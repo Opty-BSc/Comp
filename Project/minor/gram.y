@@ -13,16 +13,16 @@
 #define P_TYPE 1
 #define F_TYPE 2
 #define C_TYPE 1
-#define isArr(a) ((PLACE(a) % 4) == A_TYPE)
-#define isInt(i) ((PLACE(i) % 4) == I_TYPE)
-#define isStr(s) ((PLACE(s) % 4) == S_TYPE)
-#define isVoid(v) ((PLACE(v) % 4) == V_TYPE)
-#define toFunc(n) (n + 24)
-#define isFunc(i) (i >= 24)
+#define toType(n) (n % 4)
 #define isForw(i) ((i % 12) >= 8)
 #define isCons(i) ((i % 24) >= 12)
-#define sameType(a,b) ((a % 4) == (b % 4))
-#define checkType(g,s) (sameType(g,s) || ((g % 4 == A_TYPE) && (s % 4 == I_TYPE)))
+#define isFunc(i) (i >= 24)
+#define isArr(a) (toType(PLACE(a)) == A_TYPE)
+#define isInt(i) (toType(PLACE(i)) == I_TYPE)
+#define isStr(s) (toType(PLACE(s)) == S_TYPE)
+#define isVoid(v) (toType(PLACE(v)) == V_TYPE)
+#define sameType(a,b) (toType(a) == toType(b))
+#define checkType(g,s) (sameType(g,s) || (toType(g) == A_TYPE) && (toType(s) == I_TYPE))
 #define VType(q,c,t) (t + q * 4 + c * 12)
 #define FType(q) (retType + q * 4 + 24)
 int yylex();
@@ -185,7 +185,7 @@ iSEQ        :                       { $$ = nilNode(NIL); }
 instruction : rValue iSugar                             { $$ = binNode(EXPR, $1, $2);
                                                           if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]"); }
             | lValue '#' rValue ';'                     { $$ = binNode('#', $1, $3);
-                                                          if (isFunc(PLACE($1))) yyerror("['#' Left-value must not be a Function]");
+                                                          if (!isLV($1)) yyerror("['#' Left-value must not be a Function]");
                                                           else if (isInt($1)) yyerror("['#' Left-value Type must be a Pointer]");
                                                           else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]"); }
             | IF rValue                                 { if (!isInt($2)) yyerror("['if' Condition Type must be an Integer]"); }
@@ -233,7 +233,7 @@ lValue      : ID                        { $$ = findID($1, (void **)IDtest);
             ;
 
 rValue      : lValue                    { if (isFunc(PLACE($1))) $$ = $1;
-                                          else $$ = uniNodeT(LOAD, $1, PLACE($1)); }
+                                          else $$ = uniNodeT(LOAD, $1, toType(PLACE($1))); }
             | literal                   { $$ = $1; }
             | literals                  { $$ = $1; }
             | ID '(' rArgs ')'          { $$ = CALLNode($1, $3); }
@@ -241,7 +241,7 @@ rValue      : lValue                    { if (isFunc(PLACE($1))) $$ = $1;
             | '(' rValue ')'            { $$ = uniNodeT(PRIORITY, $2, PLACE($2)); }
             | '?'                       { $$ = nilNodeT('?', I_TYPE); }
             | '&' lValue %prec ADDR     { $$ = uniNode(ADDR, $2);
-                                          if (isFunc(PLACE($2))) yyerror("[Functions can not be located '&']");
+                                          if (!isLV($2)) yyerror("[Functions can not be located '&']");
                                           else if (!isInt($2)) yyerror("[Only Integers can be located '&']");
                                           else PLACE($$) = I_TYPE; }
             | '-' rValue %prec UMINUS   { $$ = uniNode(UMINUS, $2);
@@ -304,7 +304,7 @@ rValue      : lValue                    { if (isFunc(PLACE($1))) $$ = $1;
                                           if (isInt($1) && isInt($3)) PLACE($$) = I_TYPE;
                                           else yyerror("[Invalid Types to (OR) '|']"); }
             | lValue ASSIGN rValue      { $$ = binNode(ASSIGN, $1, $3);
-                                          if (isFunc(PLACE($1))) yyerror("[Functions can not be assigned ':=']");
+                                          if (!isLV($1)) yyerror("[Functions can not be assigned ':=']");
                                           else if (isCons(PLACE($1))) yyerror("[Constants can not be assigned ':=']");
                                           else if (OP_LABEL($3) == INT && $3->value.i == 0) PLACE($$) = PLACE($1);
                                           else if (checkType(PLACE($1), PLACE($3))) PLACE($$) = PLACE($1);
@@ -388,11 +388,14 @@ Node *VARNode(int qual, int cons, Node *var, Node *init) {
     return binNode(DECL, var, init);
 }
 
-void checkArgs(char *id, Node *params, Node *args) {
+void checkArgs(char *id, Node *params, Node *args, int eq) {
 
     if (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL) {
         do {
-            if (!sameType(PLACE(RIGHT_CHILD(params)), PLACE(RIGHT_CHILD(args)))) {
+            int parTyp = PLACE(RIGHT_CHILD(params));
+            int argTyp = PLACE(RIGHT_CHILD(args));
+
+            if (!(eq ? sameType(parTyp, argTyp) : checkType(parTyp, argTyp))) {
                 sprintf(buf, "[Invalid Parameter Types to Function '%s']", id);
                 yyerror(buf);
                 break;
@@ -431,7 +434,7 @@ void FUNCput(int qual, char *id, Node *params) {
             sprintf(buf, "[Function '%s' already declared with different Parameter Types]", id);
             yyerror(buf);
         } else {
-            checkArgs(id, *p, params);
+            checkArgs(id, *p, params, 1);
             IDchange(FType(qual), id, params, 1);
         }
     }
@@ -453,9 +456,14 @@ Node *idxNode(Node *ptr, Node *expr) {
     if (isInt(ptr)) yyerror("[Number can not be Indexed]");
     else if (!isInt(expr)) yyerror("[Index Expression must be an Integer]");
 
-    int typ = OP_LABEL(ptr) == CALL ? toFunc(I_TYPE) : I_TYPE;
+    return binNodeT('[', ptr, expr, I_TYPE);
+}
 
-    return binNodeT('[', ptr, expr, typ);
+int isLV(Node *lV) {
+
+    Node *ptr = OP_LABEL(lV) == '[' ? LEFT_CHILD(lV) : lV;
+
+    return OP_LABEL(ptr) == FETCH;
 }
 
 Node *CALLNode(char *id, Node *args) {
@@ -465,13 +473,13 @@ Node *CALLNode(char *id, Node *args) {
     Node *idN = findID(id, (void **)p);
 
     if (isFunc(PLACE(idN))) {
-        checkArgs(id, *p, args);
+        checkArgs(id, *p, args, 0);
     } else {
         sprintf(buf, "[The Identifier '%s' must be a Function]", id);
         yyerror(buf);
     }
     free(p);
-    return binNodeT(CALL, idN, args, PLACE(idN));
+    return binNodeT(CALL, idN, args, toType(PLACE(idN)));
 }
 
 char **yynames =
