@@ -127,7 +127,7 @@ vDimOPT     :                       { $$ = nilNode(NIL); }
 
 vInitOPT    :                               { $$ = nilNodeT(NIL, V_TYPE); alen = 0; }
             | ASSIGN literals               { $$ = uniNodeT(INIT, $2, PLACE($2)); }
-            | ASSIGN integerSEQ ',' INT     { $$ = uniNodeT(INIT, binNodeT(INTS, $2, intNode(INT, $4), A_TYPE), A_TYPE); }
+            | ASSIGN integerSEQ ',' INT     { $$ = uniNodeT(INIT, binNodeT(INTS, $2, intNode(INT, $4), A_TYPE), A_TYPE); alen++; }
             ;
 
 literal     : INT                   { $$ = intNode(INT, $1); PLACE($$) = I_TYPE; }
@@ -143,7 +143,7 @@ literals    : literal               { $$ = $1; alen = 1; }
             | literalSEQ literal    { $$ = binNodeT(LITERALS, $1, $2, S_TYPE); }
             ;
 
-integerSEQ  : INT                   { $$ = binNodeT(INTS, nilNode(NIL), intNode(INT, $1), A_TYPE); alen = 2; }
+integerSEQ  : INT                   { $$ = binNodeT(INTS, nilNode(NIL), intNode(INT, $1), A_TYPE); alen = 1; }
             | integerSEQ ',' INT    { $$ = binNodeT(INTS, $1, intNode(INT, $3), A_TYPE); alen++; }
             ;
 
