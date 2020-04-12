@@ -13,18 +13,21 @@
 #define P_TYPE 1
 #define F_TYPE 2
 #define C_TYPE 1
+#define qType(q) (q * 4)
+#define cType(c) (c * 12)
+#define VType(q,c,t) (qType(q) + cType(c) + t)
+#define FType(q) (qType(q) + retType + 24)
+#define isForw(i) ((i % 12) > 7)
+#define isCons(i) ((i % 24) > 11)
+#define isFunc(i) (i > 23)
 #define toType(n) (n % 4)
-#define isForw(i) ((i % 12) >= 8)
-#define isCons(i) ((i % 24) >= 12)
-#define isFunc(i) (i >= 24)
 #define isArr(a) (toType(PLACE(a)) == A_TYPE)
 #define isInt(i) (toType(PLACE(i)) == I_TYPE)
 #define isStr(s) (toType(PLACE(s)) == S_TYPE)
 #define isVoid(v) (toType(PLACE(v)) == V_TYPE)
 #define sameType(a,b) (toType(a) == toType(b))
 #define checkType(g,s) (sameType(g,s) || (toType(g) == A_TYPE) && (toType(s) == I_TYPE))
-#define VType(q,c,t) (t + q * 4 + c * 12)
-#define FType(q) (retType + q * 4 + 24)
+
 int yylex();
 int yyerror(char *s);
 extern int errors;

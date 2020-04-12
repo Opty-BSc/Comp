@@ -13,73 +13,73 @@ HEXA        [A-Fa-f0-9]+
 BINARY      [01]+
 OCTAL       [0-7]+
 IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
-%x CODE
-%x TEXT
+%x CZ
+%x PT
 %%
 
-<INITIAL,CODE>^"program"    BEGIN CODE; return PROGRAM;
-<INITIAL,CODE>^"module"     BEGIN CODE; return MODULE;
+<INITIAL,CZ>^"program"    BEGIN CZ; return PROGRAM;
+<INITIAL,CZ>^"module"     BEGIN CZ; return MODULE;
 <INITIAL>.|\n               ;/* Non Program / Module Content */
 
-<CODE>^"end"        BEGIN INITIAL; return END;
-<CODE>"$$".*\n      ;/* Explanatory Comments */
-<CODE>"$"[^$]*"$"   ;/* Operational Comments */
+<CZ>^"end"        BEGIN INITIAL; return END;
+<CZ>"$$".*\n      ;/* Explanatory Comments */
+<CZ>"$"[^$]*"$"   ;/* Operational Comments */
 
-<CODE>"start"       return START;
-<CODE>"void"        return VOID;
-<CODE>"const"       return CONST;
-<CODE>"number"      return NUMBER;
-<CODE>"array"       return ARRAY;
-<CODE>"string"      return STRING;
-<CODE>"function"    return FUNCTION;
-<CODE>"public"      return PUBLIC;
-<CODE>"forward"     return FORWARD;
-<CODE>"if"          return IF;
-<CODE>"then"        return THEN;
-<CODE>"else"        return ELSE;
-<CODE>"elif"        return ELIF;
-<CODE>"fi"          return FI;
-<CODE>"for"         return FOR;
-<CODE>"until"       return UNTIL;
-<CODE>"step"        return STEP;
-<CODE>"do"          return DO;
-<CODE>"done"        return DONE;
-<CODE>"repeat"      return REPEAT;
-<CODE>"stop"        return STOP;
-<CODE>"return"      return RETURN;
-<CODE>"<="          return LE;
-<CODE>">="          return GE;
-<CODE>"~="          return NE;
-<CODE>":="          return ASSIGN;
+<CZ>"start"       return START;
+<CZ>"void"        return VOID;
+<CZ>"const"       return CONST;
+<CZ>"number"      return NUMBER;
+<CZ>"array"       return ARRAY;
+<CZ>"string"      return STRING;
+<CZ>"function"    return FUNCTION;
+<CZ>"public"      return PUBLIC;
+<CZ>"forward"     return FORWARD;
+<CZ>"if"          return IF;
+<CZ>"then"        return THEN;
+<CZ>"else"        return ELSE;
+<CZ>"elif"        return ELIF;
+<CZ>"fi"          return FI;
+<CZ>"for"         return FOR;
+<CZ>"until"       return UNTIL;
+<CZ>"step"        return STEP;
+<CZ>"do"          return DO;
+<CZ>"done"        return DONE;
+<CZ>"repeat"      return REPEAT;
+<CZ>"stop"        return STOP;
+<CZ>"return"      return RETURN;
+<CZ>"<="          return LE;
+<CZ>">="          return GE;
+<CZ>"~="          return NE;
+<CZ>":="          return ASSIGN;
 
-<CODE>{IDENTIFIER}  { yylval.s = dupstr(yytext);         return ID; }
-<CODE>{DECIMAL}     { yylval.i = strtoi(yytext, 10);     return INT; }
-<CODE>0x{HEXA}      { yylval.i = strtoi(yytext + 2, 16); return INT; }
-<CODE>0b{BINARY}    { yylval.i = strtoi(yytext + 2, 2);  return INT; }
-<CODE>0{OCTAL}      { yylval.i = strtoi(yytext + 1, 8);  return INT; }
+<CZ>{IDENTIFIER}  { yylval.s = dupstr(yytext);         return ID; }
+<CZ>{DECIMAL}     { yylval.i = strtoi(yytext, 10);     return INT; }
+<CZ>0x{HEXA}      { yylval.i = strtoi(yytext + 2, 16); return INT; }
+<CZ>0b{BINARY}    { yylval.i = strtoi(yytext + 2, 2);  return INT; }
+<CZ>0{OCTAL}      { yylval.i = strtoi(yytext + 1, 8);  return INT; }
 
-<CODE>\"        BEGIN TEXT;
-<TEXT>\"        { yytext[yyleng-1] = 0; yylval.s = dupstr(yytext); BEGIN CODE; return STR; }
-<TEXT>\\[n]     { yytext[yyleng-2] = '\n'; yytext[yyleng-1] = 0; yymore(); }
-<TEXT>\\[t]     { yytext[yyleng-2] = '\t'; yytext[yyleng-1] = 0; yymore(); }
-<TEXT>\\[r]     { yytext[yyleng-2] = '\r'; yytext[yyleng-1] = 0; yymore(); }
-<TEXT>\\[\\"]   { yytext[yyleng-2] = yytext[yyleng-1]; yytext[yyleng-1] = 0; yymore(); }
-<TEXT>.		{ yymore(); }
+<CZ>\"          BEGIN PT;
+<PT>\"          { yytext[yyleng-1] = 0; yylval.s = dupstr(yytext); BEGIN CZ; return STR; }
+<PT>\\[n]       { yytext[yyleng-2] = '\n'; yytext[yyleng-1] = 0; yymore(); }
+<PT>\\[t]       { yytext[yyleng-2] = '\t'; yytext[yyleng-1] = 0; yymore(); }
+<PT>\\[r]       { yytext[yyleng-2] = '\r'; yytext[yyleng-1] = 0; yymore(); }
+<PT>\\[\\"]     { yytext[yyleng-2] = yytext[yyleng-1]; yytext[yyleng-1] = 0; yymore(); }
+<PT>.           { yymore(); }
 
-<CODE>\'\\[n]\'     { yylval.c = '\n'; return CHAR; }
-<CODE>\'\\[t]\'     { yylval.c = '\t'; return CHAR; }
-<CODE>\'\\[r]\'     { yylval.c = '\r'; return CHAR; }
-<CODE>\'(\\[\\']|[^\\])\'               { yylval.c = yytext[yyleng-2];       return CHAR; }
-<CODE>\'\\[A-Fa-f0-9][A-Fa-f0-9]?\'     { yylval.c = strtoi(yytext + 2, 16); return CHAR; }
+<CZ>\'\\[n]\'     { yylval.c = '\n'; return CHAR; }
+<CZ>\'\\[t]\'     { yylval.c = '\t'; return CHAR; }
+<CZ>\'\\[r]\'     { yylval.c = '\r'; return CHAR; }
+<CZ>\'(\\[\\']|[^\\])\'               { yylval.c = yytext[yyleng-2];       return CHAR; }
+<CZ>\'\\[A-Fa-f0-9][A-Fa-f0-9]?\'     { yylval.c = strtoi(yytext + 2, 16); return CHAR; }
 
-<CODE>[-+*/%^:=<>~|&~?#\[\]();:!,]      return *yytext;
-<CODE>[\ \n\r\t]+   /* Whitespaces */   ;
-<CODE>.             /*  Something  */   { yyerror("Unknown Character"); }
+<CZ>[-+*/%^:=<>~|&~?#\[\]();:!,]      return *yytext;
+<CZ>[\ \n\r\t]+   /* Whitespaces */   ;
+<CZ>.             /*  Something  */   { yyerror("Unknown Character"); }
 
 %%
 int yywrap() {
-    if (YYSTATE == CODE) yyerror("Unterminated Code Zone");
-    if (YYSTATE == TEXT) yyerror("Unterminated String");
+    if (YYSTATE == CZ) yyerror("Unterminated Code Zone");
+    if (YYSTATE == PT) yyerror("Unterminated Literal String");
     return 1;
 }
 
