@@ -189,6 +189,7 @@ instruction : rValue iSugar                             { $$ = binNode(EXPR, $1,
                                                           if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]"); }
             | lValue '#' rValue ';'                     { $$ = binNode('#', $1, $3);
                                                           if (!isLV($1)) yyerror("['#' Left-value must not be a Function]");
+                                                          else if (isCons(PLACE($1))) yyerror("['#' Left-value must not be a Constant]");
                                                           else if (isInt($1)) yyerror("['#' Left-value Type must be a Pointer]");
                                                           else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]"); }
             | IF rValue                                 { if (!isInt($2)) yyerror("['if' Condition Type must be an Integer]"); }
