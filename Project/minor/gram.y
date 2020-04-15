@@ -19,10 +19,6 @@
 9 FORWARD INT
 10 FORWARD STR
 11 FORWARD VOID
-12 FORWARD CONST ARRAY
-13 FORWARD CONST INT
-14 FORWARD CONST STR
-15 FORWARD CONST VOID
 16 FUNCTION ARRAY
 17 FUNCTION INT
 18 FUNCTION STR
@@ -92,7 +88,7 @@ char buf[120] = "";
 %type <n> program module dSEQOPT dSEQ declaration
 %type <n> variable vDimOPT vInitOPT literal literalSEQ literals integerSEQ
 %type <n> function fParamsOPT fParams fBody body vSEQ
-%type <n> iBlock iSEQ instruction iElifSEQ iElif iElse iSugar iLast
+%type <n> iBlock iSEQOPT iSEQ instruction iElifSEQ iElif iElse iSugar iLast
 %type <n> rValueOPT lValue rValue rArgs
 %type <n> qualifier constant type fType
 
@@ -117,9 +113,10 @@ dSEQOPT     :                       { $$ = nilNode(NIL); }
             ;
 
 dSEQ        : declaration           { $$ = binNode(DECLS, nilNode(NIL), $1); }
-            | error                 { $$ = binNode(DECLS, nilNode(NIL), nilNode(ERROR)); }
             | dSEQ ';' declaration  { $$ = binNode(DECLS, $1, $3); }
-            | dSEQ ';' error        { $$ = binNode(DECLS, $1, nilNode(ERROR)); }
+            | error START           { $$ = binNode(DECLS, nilNode(NIL), nilNode(ERROR)); }
+            | error END             { $$ = binNode(DECLS, nilNode(NIL), nilNode(ERROR)); }
+            | dSEQ ';' error ';'    { $$ = binNode(DECLS, $1, nilNode(ERROR)); }
             ;
 
 declaration : function                              { $$ = $1; }
@@ -196,7 +193,7 @@ fBody       : DONE                  { $$ = nilNode(DONE); }
             | DO body               { $$ = uniNode(DO, $2); }
             ;
 
-body        : vSEQ iSEQ iLast       { $$ = binNode(BODY, $1, binNode(BLOCK, $2, $3)); }
+body        : vSEQ iSEQOPT iLast    { $$ = binNode(BODY, $1, binNode(BLOCK, $2, $3)); }
             ;
 
 vSEQ        :                       { $$ = nilNode(NIL); }
@@ -204,11 +201,18 @@ vSEQ        :                       { $$ = nilNode(NIL); }
             | vSEQ error ';'        { $$ = binNode(VARS, $1, nilNode(ERROR)); }
             ;
 
-iBlock      : { blck++; } iSEQ iLast    { blck--; $$ = binNode(BLOCK, $2, $3); }
+iBlock      : { blck++; } iSEQOPT iLast { blck--; $$ = binNode(BLOCK, $2, $3); }
             ;
 
-iSEQ        :                       { $$ = nilNode(NIL); }
+iSEQOPT     :                       { $$ = nilNode(NIL); }
+            | iSEQ                  { $$ = $1; }
+            ;
+
+iSEQ        : instruction           { $$ = binNode(INSTRS, nilNode(ERROR), $1); }
             | iSEQ instruction      { $$ = binNode(INSTRS, $1, $2); }
+            | iSEQ error iSugar     { $$ = binNode(INSTRS, $1, nilNode(ERROR)); }
+            | iSEQ error FI         { $$ = binNode(INSTRS, $1, nilNode(ERROR)); }
+            | iSEQ error DONE       { $$ = binNode(INSTRS, $1, nilNode(ERROR)); }
             ;
 
 instruction : rValue iSugar                             { $$ = binNode(EXPR, $1, $2);
