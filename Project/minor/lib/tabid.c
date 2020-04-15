@@ -70,11 +70,12 @@ int IDnew(int typ, char *s, void *attrib) {
 
 int IDinsert(int lev, int typ, char *s, void *attrib) {
     struct id *aux, *scout = root, **base;
+    int i = lev;
 
     if (lev > level) { yyerror("Invalid scope level"); return 0; }
     if (lev == level) return IDnew(typ, s, attrib);
 
-    for (lev = level - lev; lev > 0; lev--) {
+    for (i = level - i; i > 0; i--) {
         while (scout->name != 0) scout = scout->next;
         base = &scout->next;
         scout = scout->next;
@@ -124,19 +125,14 @@ int IDchange(int typ, char *s, void *attrib, int skip) {
    -1 - if no ID can be found in any visible bucket up to the root
    type - there is an accessible ID previously defined
 */
-int IDfind(char *s, void **attrib, int skip) {
-    struct id *aux = root;
+int IDfind(char *s, void **attrib) {
+    struct id *aux;
 
-    if (skip > level) skip = level;
-    while (skip-- > 0) { /* skip the first 'skip' levels */
-        while (aux->name != 0) aux = aux->next;
-        aux = aux->next;
-    }
-    for (; aux != 0; aux = aux->next)
+    for (aux = root; aux != 0; aux = aux->next)
         if (aux->name != 0 && strcmp(aux->name, s) == 0) {
             if (attrib != 0 && attrib != ((void**)IDtest)) *attrib = aux->attrib;
             return aux->type;
-        }
+        } /* else if (aux->name == 0 && lev > 0 && --lev == 0) break; */
     return -1;
 }
 
@@ -155,11 +151,6 @@ int IDsearch(char *s, void **attrib, int skip, int lev) {
 
         } else if (aux->name == 0 && lev > 0 && --lev == 0)
             break; /* stop after 'lev' levels */
-
-    if (attrib != ((void**)IDtest)) {
-        sprintf(buf, "%s: undefined.", s);
-        yyerror(buf);
-    }
     return -1;
 }
 

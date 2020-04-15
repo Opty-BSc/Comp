@@ -20,13 +20,13 @@
 #define isForw(i) ((i % 12) > 7)
 #define isCons(i) ((i % 24) > 11)
 #define isFunc(i) (i > 23)
-#define toType(n) (n % 4)
-#define isArr(a) (toType(PLACE(a)) == A_TYPE)
-#define isInt(i) (toType(PLACE(i)) == I_TYPE)
-#define isStr(s) (toType(PLACE(s)) == S_TYPE)
-#define isVoid(v) (toType(PLACE(v)) == V_TYPE)
-#define sameType(a,b) (toType(a) == toType(b))
-#define checkType(g,s) (sameType(g,s) || (toType(g) == A_TYPE) && (toType(s) == I_TYPE))
+#define nakedType(n) (n % 4)
+#define isArr(a) (nakedType(PLACE(a)) == A_TYPE)
+#define isInt(i) (nakedType(PLACE(i)) == I_TYPE)
+#define isStr(s) (nakedType(PLACE(s)) == S_TYPE)
+#define isVoid(v) (nakedType(PLACE(v)) == V_TYPE)
+#define sameType(a,b) (nakedType(a) == nakedType(b))
+#define checkType(g,s) (sameType(g,s) || (nakedType(g) == A_TYPE) && (nakedType(s) == I_TYPE))
 
 int yylex();
 int yyerror(char *s);
@@ -35,6 +35,7 @@ int alen = 0;
 int blck = 0;
 int cicl = 0;
 int retType = I_TYPE;
+int inMain = 0;
 char buf[120] = "";
 %}
 
@@ -81,7 +82,7 @@ file        : { IDpush(); } program { IDpop(); if (!errors) printNode($2, 0, yyn
             | { IDpush(); } module  { IDpop(); if (!errors) printNode($2, 0, yynames); freeNode($2); }
             ;
 
-program     : PROGRAM dSEQOPT START body END    { $$ = binNode(PROGRAM, $2, $4); }
+program     : PROGRAM dSEQOPT START { IDpush(); inMain = 1; } body { inMain = 0; IDpop(); } END { $$ = binNode(PROGRAM, $2, $5); }
             ;
 
 module      : MODULE dSEQOPT END    { $$ = uniNode(MODULE, $2); }
@@ -222,7 +223,7 @@ iLast       :                           { $$ = nilNode(NIL); }
             | STOP                      { $$ = nilNode(STOP);
                                           if (!cicl) yyerror("[Stop must appear inside of a cicle]"); }
             | RETURN rValueOPT          { $$ = uniNode(RETURN, $2);
-                                          if (!blck && (IDlevel() == 1 || retType == V_TYPE)) yyerror("[Return must appear inside of a sub-block]");
+                                          if (!blck && (inMain || retType == V_TYPE)) yyerror("[Return must appear inside of a sub-block]");
                                           else if (!checkType(retType, PLACE($2))) yyerror("[Funciton Type != Return Type]"); }
             ;
 
@@ -238,7 +239,7 @@ lValue      : ID                        { $$ = findID($1, (void **)IDtest);
             ;
 
 rValue      : lValue                    { if (isFunc(PLACE($1))) $$ = $1;
-                                          else $$ = uniNodeT(LOAD, $1, toType(PLACE($1))); }
+                                          else $$ = uniNodeT(LOAD, $1, nakedType(PLACE($1))); }
             | literals                  { $$ = $1; }
             | ID '(' rArgs ')'          { $$ = CALLNode($1, $3); }
             | rValue '[' rValue ']'     { $$ = idxNode($1, $3); }
@@ -343,11 +344,11 @@ Node *binNodeT(int tok, Node *left, Node *right, int info) {
 
 void VARput(int qual, int cons, Node *var) {
 
-    int typ = IDfind(LEFT_CHILD(var)->value.s, (void **)IDtest, 0);
     char *id = LEFT_CHILD(var)->value.s;
+    int typ = IDsearch(id, (void **)IDtest, 0, 1);
 
     if (typ == -1) {
-        IDadd(VType(qual, cons, PLACE(var)), LEFT_CHILD(var)->value.s, 0);
+        IDadd(VType(qual, cons, PLACE(var)), id, 0);
     } else {
         if (isFunc(typ)) {
             sprintf(buf, "[Function named '%s' already declared]", id);
@@ -359,7 +360,7 @@ void VARput(int qual, int cons, Node *var) {
             sprintf(buf, "[Variable '%s' already declared with a different Type]", id);
             yyerror(buf);
         } else {
-            IDreplace(VType(qual, cons, PLACE(var)), LEFT_CHILD(var)->value.s, 0);
+            IDreplace(VType(qual, cons, PLACE(var)), id, 0);
         }
     }
 }
@@ -423,7 +424,7 @@ void FUNCput(int qual, char *id, Node *params) {
 
     Node **p = (Node **)malloc(sizeof(Node *));
     if (p == NULL) { yyerror("Out of Memory"); exit(2); }
-    int typ = IDfind(id, (void **)p, 1);
+    int typ = IDsearch(id, (void **)p, 1, 1);
 
     if (typ == -1) {
         IDinsert(IDlevel() - 1, FType(qual), id, params);
@@ -447,7 +448,7 @@ void FUNCput(int qual, char *id, Node *params) {
 
 Node *findID(char *id, void **attr) {
 
-    int typ = IDfind(id, attr, 0);
+    int typ = IDfind(id, attr);
     if (typ == -1) {
         sprintf(buf, "[Identifier '%s' is undefined]", id);
         yyerror(buf);
@@ -483,7 +484,7 @@ Node *CALLNode(char *id, Node *args) {
         yyerror(buf);
     }
     free(p);
-    return binNodeT(CALL, idN, args, toType(PLACE(idN)));
+    return binNodeT(CALL, idN, args, nakedType(PLACE(idN)));
 }
 
 char **yynames =
