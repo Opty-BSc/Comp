@@ -19,14 +19,18 @@
 9 FORWARD INT
 10 FORWARD STR
 11 FORWARD VOID
+12 FORWARD CONST ARRAY
+13 FORWARD CONST INT
+14 FORWARD CONST STR
+15 FORWARD CONST VOID
 16 FUNCTION ARRAY
 17 FUNCTION INT
 18 FUNCTION STR
 19 FUNCTION VOID
-24 FUNCTION FORWARD ARRAY
-25 FUNCTION FORWARD INT
-26 FUNCTION FORWARD STR
-27 FUNCTION FORWARD VOID
+24 FORWARD FUNCTION ARRAY
+25 FORWARD FUNCTION INT
+26 FORWARD FUNCTION STR
+27 FORWARD FUNCTION VOID
 */
 #define _ARRAY 0
 #define _INT 1
@@ -348,28 +352,28 @@ rArgs       : rValue                    { $$ = binNode(PARAMS, nilNode(NIL), $1)
             ;
 %%
 
-Node *nilNodeT(int tok, int info) {
+static Node *nilNodeT(int tok, int info) {
 
     Node *n = nilNode(tok);
     PLACE(n) = info;
     return n;
 }
 
-Node *uniNodeT(int tok, Node *left, int info) {
+static Node *uniNodeT(int tok, Node *left, int info) {
 
     Node *n = uniNode(tok, left);
     PLACE(n) = info;
     return n;
 }
 
-Node *binNodeT(int tok, Node *left, Node *right, int info) {
+static Node *binNodeT(int tok, Node *left, Node *right, int info) {
 
     Node *n = binNode(tok, left, right);
     PLACE(n) = info;
     return n;
 }
 
-void VARput(Node *var) {
+static void VARput(Node *var) {
 
     char *id = LEFT_CHILD(RIGHT_CHILD(var))->value.s;
     int typ = IDsearch(id, (void **)IDtest, 0, 1);
@@ -392,7 +396,7 @@ void VARput(Node *var) {
     }
 }
 
-Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
+static Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
 
     char *id = LEFT_CHILD(RIGHT_CHILD(var))->value.s;
     int typV = PLACE(qual) + PLACE(cons) + PLACE(var);
@@ -424,7 +428,7 @@ Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
     return binNode(VAR, binNode(V_PRIVACY, qual, binNode(V_RDONLY, cons, var)), init);
 }
 
-void checkArgs(char *id, Node *params, Node *args, int eq) {
+static void checkArgs(char *id, Node *params, Node *args, int eq) {
 
     if (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL) {
         do {
@@ -451,7 +455,7 @@ void checkArgs(char *id, Node *params, Node *args, int eq) {
     }
 }
 
-void FUNput(int typF, char *id, Node *params) {
+static void FUNput(int typF, char *id, Node *params) {
 
     Node **p = (Node **)malloc(sizeof(Node *));
     if (p == NULL) { yyerror("Out of Memory"); exit(2); }
@@ -477,7 +481,7 @@ void FUNput(int typF, char *id, Node *params) {
     free(p);
 }
 
-Node *findID(char *id, void **attr) {
+static Node *findID(char *id, void **attr) {
 
     int typ = IDfind(id, attr);
     if (typ == -1) {
@@ -487,7 +491,7 @@ Node *findID(char *id, void **attr) {
     return uniNodeT(FETCH, strNode(ID, id), typ);
 }
 
-Node *idxNode(Node *ptr, Node *expr) {
+static Node *idxNode(Node *ptr, Node *expr) {
 
     if (isInt(ptr)) yyerror("[Number can not be Indexed]");
     else if (!isInt(expr)) yyerror("[Index Expression must be an Integer]");
@@ -495,12 +499,12 @@ Node *idxNode(Node *ptr, Node *expr) {
     return binNodeT('[', ptr, expr, _INT);
 }
 
-int isLV(Node *ptr) {
+static int isLV(Node *ptr) {
 
     return OP_LABEL(ptr) == FETCH || OP_LABEL(ptr) == '[';
 }
 
-Node *CALLNode(char *id, Node *args) {
+static Node *CALLNode(char *id, Node *args) {
 
     Node **p = (Node **)malloc(sizeof(Node *));
     if (p == NULL) { yyerror("[Out of Memory]"); exit(2); }
