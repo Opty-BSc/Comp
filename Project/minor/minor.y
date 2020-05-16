@@ -36,13 +36,13 @@
 #define _INT 1
 #define _STR 2
 #define _VOID 3
-#define NAK_TYP(a) (a % 4)
-#define EQU_TYP(a, n) (NAK_TYP(a) == NAK_TYP(PLACE(n)) || IS_NULL(n))
-#define IS_NULL(n) (OP_LABEL(n) == INT && n->value.i == 0)
-#define isArray(n) (NAK_TYP(PLACE(n)) == 0)
-#define isInt(n) (NAK_TYP(PLACE(n)) == 1)
-#define isStr(n) (NAK_TYP(PLACE(n)) == 2)
-#define isVoid(n) (NAK_TYP(PLACE(n)) == 3)
+#define NAKED_TYPE(a) (a % 4)
+#define SAME_TYPE(a, n) (NAKED_TYPE(a) == NAKED_TYPE(PLACE(n)) || isNull(n))
+#define isNull(n) (OP_LABEL(n) == INT && n->value.i == 0)
+#define isArray(n) (NAKED_TYPE(PLACE(n)) == 0)
+#define isInt(n) (NAKED_TYPE(PLACE(n)) == 1)
+#define isStr(n) (NAKED_TYPE(PLACE(n)) == 2)
+#define isVoid(n) (NAKED_TYPE(PLACE(n)) == 3)
 #define _CONST 4
 #define _FORWARD 8
 #define _PUBLIC 0
@@ -258,7 +258,7 @@ iLast       :                           { $$ = nilNode(NIL); }
                                           if (!cicl) yyerror("[Stop must appear inside of a cicle]"); }
             | RETURN rValueOPT          { $$ = uniNode(RETURN, $2);
                                           if (!blck && (inMain || retType == _VOID)) yyerror("[Return must appear inside of a sub-block]");
-                                          else if (!EQU_TYP(retType, $2)) yyerror("[Funciton Type != Return Type]"); }
+                                          else if (!SAME_TYPE(retType, $2)) yyerror("[Funciton Type != Return Type]"); }
             ;
 
 rValueOPT   :                           { $$ = nilNodeT(NIL, _VOID); }
@@ -272,8 +272,8 @@ lValue      : ID                        { $$ = findID($1, (void **)IDtest);
                                           else $$ = idxNode($$, $3); }
             ;
 
-rValue      : lValue                    { if (!isLV($1)) $$ = $1;
-                                          else $$ = uniNodeT(LOAD, $1, NAK_TYP(PLACE($1))); }
+rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, NAKED_TYPE(PLACE($1)));
+                                          else $$ = $1; }
             | literals                  { $$ = $1; }
             | ID '(' rArgs ')'          { $$ = CALLNode($1, $3); }
             | '(' rValue ')'            { $$ = uniNodeT(PRIORITY, $2, PLACE($2)); }
@@ -344,7 +344,7 @@ rValue      : lValue                    { if (!isLV($1)) $$ = $1;
             | lValue ASSIGN rValue      { $$ = binNode(ASSIGN, $1, $3);
                                           if (!isLV($1)) yyerror("[Functions can not be assigned ':=']");
                                           else if (isConst(PLACE($1))) yyerror("[Constants can not be assigned ':=']");
-                                          else if (EQU_TYP(PLACE($1), $3)) PLACE($$) = PLACE($1);
+                                          else if (SAME_TYPE(PLACE($1), $3)) PLACE($$) = PLACE($1);
                                           else yyerror("[Invalid Types to ':=']"); }
             ;
 
@@ -388,7 +388,7 @@ static void VARput(Node *var) {
         } else if (!isForward(typ)) {
             sprintf(buf, "[Variable '%s' already defined]", id);
             yyerror(buf);
-        } else if (isConst(typ) != isConst(PLACE(var)) || NAK_TYP(typ) != NAK_TYP(PLACE(var))) {
+        } else if (isConst(typ) != isConst(PLACE(var)) || NAKED_TYPE(typ) != NAKED_TYPE(PLACE(var))) {
             sprintf(buf, "[Variable '%s' already declared with a different Type]", id);
             yyerror(buf);
         } else {
@@ -406,7 +406,7 @@ static Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
         if (isForward(typV)) {
             sprintf(buf, "[Forward Variable '%s' can not be initialized]", id);
             yyerror(buf);
-        } else if (!(EQU_TYP(typV, init) || (typV == _ARRAY) && isInt(init))) {
+        } else if (!SAME_TYPE(typV, init) && !(NAKED_TYPE(typV) == _ARRAY && isInt(init))) {
             sprintf(buf, "[Invalid Variable '%s' initialization Type]", id);
             yyerror(buf);
         } else if (isArray(var)) {
@@ -435,7 +435,7 @@ static void checkArgs(char *id, Node *params, Node *args) {
 
     while (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL) {
         
-        if (!EQU_TYP(PLACE(RIGHT_CHILD(params)), RIGHT_CHILD(args))) {
+        if (!SAME_TYPE(PLACE(RIGHT_CHILD(params)), RIGHT_CHILD(args))) {
             sprintf(buf, "[Invalid Parameter Types to Function '%s']", id);
             yyerror(buf);
             return;
@@ -465,7 +465,7 @@ static void FUNput(int typF, char *id, Node *params) {
         } else if (!isForward(typ)) {
             sprintf(buf, "[Function '%s' already defined]", id);
             yyerror(buf);
-        } else if (NAK_TYP(typ) != NAK_TYP(typF)) {
+        } else if (NAKED_TYPE(typ) != NAKED_TYPE(typF)) {
             sprintf(buf, "[Function '%s' already declared with a different Type]", id);
             yyerror(buf);
         } else {
@@ -512,7 +512,7 @@ static Node *CALLNode(char *id, Node *args) {
         yyerror(buf);
     }
     free(p);
-    return binNodeT(CALL, idN, args, NAK_TYP(PLACE(idN)));
+    return binNodeT(CALL, idN, args, NAKED_TYPE(PLACE(idN)));
 }
 
 char **yynames =
