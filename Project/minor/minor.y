@@ -37,12 +37,12 @@
 #define _STR 2
 #define _VOID 3
 #define NAK_TYP(a) (a % 4)
-#define EQU_TYP(a,v) (NAK_TYP(a) == NAK_TYP(PLACE(v)) || IS_NULL(v))
-#define IS_NULL(v) (OP_LABEL(v) == INT && v->value.i == 0)
-#define isArray(v) (NAK_TYP(PLACE(v)) == 0)
-#define isInt(v) (NAK_TYP(PLACE(v)) == 1)
-#define isStr(v) (NAK_TYP(PLACE(v)) == 2)
-#define isVoid(v) (NAK_TYP(PLACE(v)) == 3)
+#define EQU_TYP(a, n) (NAK_TYP(a) == NAK_TYP(PLACE(n)) || IS_NULL(n))
+#define IS_NULL(n) (OP_LABEL(n) == INT && n->value.i == 0)
+#define isArray(n) (NAK_TYP(PLACE(n)) == 0)
+#define isInt(n) (NAK_TYP(PLACE(n)) == 1)
+#define isStr(n) (NAK_TYP(PLACE(n)) == 2)
+#define isVoid(n) (NAK_TYP(PLACE(n)) == 3)
 #define _CONST 4
 #define _FORWARD 8
 #define _PUBLIC 0
@@ -99,8 +99,8 @@ char buf[120] = "";
 %type <n> qualifier constant type fType
 
 %token NIL DECL DECLS LITERALS INTS
-%token VAR V_PRIVACY V_RDONLY V_TYPE V_ID V_DIM INIT F_PRIVACY F_TYPE F_ID PARAMS
-%token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS
+%token VAR V_PRIVACY V_RDONLY V_TYPE V_ID V_DIM INIT F_PRIVACY F_TYPE F_ID PARAMS F_BODY
+%token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
 %token BODY VARS FETCH LOAD CALL PRIORITY ERROR
 %%
 
@@ -196,7 +196,7 @@ fParams     : variable              { VARput($1); $$ = binNode(PARAMS, nilNode(N
             ;
 
 fBody       : DONE                  { $$ = nilNode(DONE); }
-            | DO body               { $$ = uniNode(DO, $2); }
+            | DO body               { $$ = uniNode(F_BODY, $2); }
             ;
 
 body        : vSEQ iSEQOPT iLast    { $$ = binNode(BODY, $1, binNode(BLOCK, $2, $3)); }
@@ -491,12 +491,12 @@ static Node *idxNode(Node *ptr, Node *expr) {
     if (isInt(ptr)) yyerror("[Number can not be Indexed]");
     else if (!isInt(expr)) yyerror("[Index Expression must be an Integer]");
 
-    return binNodeT('[', ptr, expr, _INT);
+    return binNodeT(OP_LABEL(ptr) == FETCH ? LINDEX : RINDEX, ptr, expr, _INT);
 }
 
 static int isLV(Node *ptr) {
 
-    return OP_LABEL(ptr) == FETCH || OP_LABEL(ptr) == '[';
+    return OP_LABEL(ptr) == FETCH || OP_LABEL(ptr) == LINDEX;
 }
 
 static Node *CALLNode(char *id, Node *args) {

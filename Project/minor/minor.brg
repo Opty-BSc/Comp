@@ -10,7 +10,7 @@
 extern FILE *yyout;
 %}
 %include "y.tab.h"
-%term INDEX = '[' EXPRFI = ';' ECHO = '!' ALLOC = '#' INPUT = '?'
+%term EXPRFI = ';' ECHO = '!' ALLOC = '#' INPUT = '?'
 %term ADD = '+' SUB = '-' MUL = '*' DIV = '/' POW = '^' MOD = '%'
 %term LESSER = '<' BIGGER = '>' EQ = '=' NOT = '~' AND = '&' OR = '|'
 %%
@@ -21,7 +21,7 @@ file        : MODULE(dSEQ)              1 {}
 dSEQ        : DECLS(dSEQ, declaration)  1 {}
 dSEQ        : NIL                       1 {}
 
-declaration : VAR(V_PRIVACY(qualifier, V_RDONLY(constant, variable)), init) 1 {}
+declaration : VAR(V_PRIVACY(qualifier, V_RDONLY(constant, variable)), INIT(values)) 1 {}
 
 declaration : FUNCTION(F_PRIVACY(qualifier, F_TYPE(typeOrVoid, F_ID(ID, pSEQ))), funcBody)  1 {}
 
@@ -41,10 +41,10 @@ type        : STRING                    1 {}
 size        : V_DIM                     1 {}
 size        : NIL                       1 {}
 
-init        : INIT(literal)             1 {}
-init        : INIT(lSEQ)                1 {}
-init        : INIT(integerSEQ)          1 {}
-init        : INIT(NIL)                 1 {}
+values      : lSEQ                      1 {}
+values      : integerSEQ                1 {}
+values      : literal                   1 {}
+values      : NIL                       1 {}
 
 lSEQ        : LITERALS(lSEQ, literal)   1 {} 
 lSEQ        : NIL                       1 {}
@@ -63,7 +63,7 @@ pSEQ        : PARAMS(pSEQ, variable)    1 {}
 pSEQ        : NIL                       1 {}
 
 funcBody    : DONE                      1 {}
-funcBody    : DO(body)                  1 {}
+funcBody    : F_BODY(body)              1 {}
 
 body        : BODY(vSEQ, iBlock)        1 {}
 
@@ -97,7 +97,7 @@ iElse       : ELSE(iBlock)              1 {}
 iElse       : NIL                       1 {}
 
 lValue      : FETCH(ID)                 1 {}
-lValue      : INDEX(FETCH(ID), rValue)  1 {}
+lValue      : LINDEX(FETCH(ID), rValue) 1 {}
 
 funcCall    : CALL(FETCH(ID), aSEQ)     1 {}
 
@@ -106,7 +106,7 @@ aSEQ        : NIL                       1 {}
 
 rValue      : LOAD(lValue)              1 {}
 rValue      : funcCall                  1 {}
-rValue      : INDEX(funcCall, rValue)   1 {}
+rValue      : RINDEX(funcCall, rValue)  1 {}
 rValue      : literal                   1 {}
 rValue      : lSEQ                      1 {}
 rValue      : PRIORITY(rValue)          1 {}
