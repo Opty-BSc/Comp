@@ -4,14 +4,16 @@ EXS=exs
 UTIL=util
 LEX=flex
 YACC=byacc
+BURG=pburg
 CC=gcc
 CFLAGS=-g -DYYDEBUG
 
-$(LANG): scan.l gram.y
+$(LANG): minor.l minor.y minor.brg
 	make -C $(LIB)
-	$(LEX) -dl scan.l
-	$(YACC) -dv gram.y
-	$(CC) $(CFLAGS) -o $(LANG) -I$(LIB) lex.yy.c y.tab.c -L$(LIB) -l$(UTIL)
+	$(LEX) -dl minor.l
+	$(YACC) -dv minor.y
+	$(BURG) -T minor.brg
+	$(CC) $(CFLAGS) -o $(LANG) -I$(LIB) lex.yy.c y.tab.c yyselect.c -L$(LIB) -l$(UTIL)
 
 clean::
 	make -C $(LIB) clean

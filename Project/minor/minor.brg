@@ -1,0 +1,132 @@
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "node.h"
+#include "tabid.h"
+#include "y.tab.h"
+#include "postfix.h"
+
+extern FILE *yyout;
+%}
+%include "y.tab.h"
+%term INDEX = '[' EXPRFI = ';' ECHO = '!' ALLOC = '#' INPUT = '?'
+%term ADD = '+' SUB = '-' MUL = '*' DIV = '/' POW = '^' MOD = '%'
+%term LESSER = '<' BIGGER = '>' EQ = '=' NOT = '~' AND = '&' OR = '|'
+%%
+
+file        : PROGRAM(dSEQ, body)       1 {}
+file        : MODULE(dSEQ)              1 {}
+
+dSEQ        : DECLS(dSEQ, declaration)  1 {}
+dSEQ        : NIL                       1 {}
+
+declaration : VAR(V_PRIVACY(qualifier, V_RDONLY(constant, variable)), init) 1 {}
+
+declaration : FUNCTION(F_PRIVACY(qualifier, F_TYPE(typeOrVoid, F_ID(ID, pSEQ))), funcBody)  1 {}
+
+variable    : V_TYPE(type, V_ID(ID, size))  1 {}
+
+qualifier   : PUBLIC                    1 {}
+qualifier   : FORWARD                   1 {}
+qualifier   : NIL                       1 {}
+
+constant    : CONST                     1 {}
+constant    : NIL                       1 {}
+
+type        : ARRAY                     1 {}
+type        : NUMBER                    1 {}
+type        : STRING                    1 {}
+
+size        : V_DIM                     1 {}
+size        : NIL                       1 {}
+
+init        : INIT(literal)             1 {}
+init        : INIT(lSEQ)                1 {}
+init        : INIT(integerSEQ)          1 {}
+init        : INIT(NIL)                 1 {}
+
+lSEQ        : LITERALS(lSEQ, literal)   1 {} 
+lSEQ        : NIL                       1 {}
+
+literal     : INT                       1 {}
+literal     : CHAR                      1 {}
+literal     : STR                       1 {}
+
+integerSEQ  : INTS(integerSEQ, INT)     1 {}
+integerSEQ  : NIL                       1 {}
+
+typeOrVoid  : type                      1 {}
+typeOrVoid  : VOID                      1 {}
+
+pSEQ        : PARAMS(pSEQ, variable)    1 {}
+pSEQ        : NIL                       1 {}
+
+funcBody    : DONE                      1 {}
+funcBody    : DO(body)                  1 {}
+
+body        : BODY(vSEQ, iBlock)        1 {}
+
+vSEQ        : VARS(vSEQ, variable)      1 {}
+vSEQ        : NIL                       1 {}
+
+iBlock      : BLOCK(iSEQ, iLast)        1 {}
+
+iSEQ        : INSTRS(iSEQ, instruction) 1 {}
+iSEQ        : NIL                       1 {}
+
+iLast       : REPEAT                    1 {}
+iLast       : STOP                      1 {}
+iLast       : RETURN(NIL)               1 {}
+iLast       : RETURN(rValue)            1 {}
+iLast       : NIL                       1 {}
+
+instruction : EXPR(rValue, EXPRFI)      1 {}
+instruction : EXPR(rValue, ECHO)        1 {}
+instruction : ALLOC(lValue, rValue)     1 {}
+
+instruction : CONDITION(IF(rValue, THEN(iBlock)), ELSES(iElifSEQ, iElse)) 1 {}
+
+instruction : FOR(rValue, UNTIL(rValue, STEP(rValue, DO(iBlock))))  1 {}
+
+iElifSEQ    : ELIFS(iElifSEQ, ELIF(rValue, THEN(iBlock))) 1 {}
+
+iElifSEQ    : NIL                       1 {}
+
+iElse       : ELSE(iBlock)              1 {}
+iElse       : NIL                       1 {}
+
+lValue      : FETCH(ID)                 1 {}
+lValue      : INDEX(FETCH(ID), rValue)  1 {}
+
+funcCall    : CALL(FETCH(ID), aSEQ)     1 {}
+
+aSEQ        : ARGS(aSEQ, rValue)        1 {}
+aSEQ        : NIL                       1 {}
+
+rValue      : LOAD(lValue)              1 {}
+rValue      : funcCall                  1 {}
+rValue      : INDEX(funcCall, rValue)   1 {}
+rValue      : literal                   1 {}
+rValue      : lSEQ                      1 {}
+rValue      : PRIORITY(rValue)          1 {}
+rValue      : INPUT                     1 {}
+rValue      : ADDR(lValue)              1 {}
+rValue      : UMINUS(rValue)            1 {}
+rValue      : POW(rValue, rValue)       1 {}
+rValue      : MUL(rValue, rValue)       1 {}
+rValue      : DIV(rValue, rValue)       1 {}
+rValue      : MOD(rValue, rValue)       1 {}
+rValue      : ADD(rValue, rValue)       1 {}
+rValue      : SUB(rValue, rValue)       1 {}
+rValue      : LESSER(rValue, rValue)    1 {}
+rValue      : BIGGER(rValue, rValue)    1 {}
+rValue      : LE(rValue, rValue)        1 {}
+rValue      : GE(rValue, rValue)        1 {}
+rValue      : NE(rValue, rValue)        1 {}
+rValue      : EQ(rValue, rValue)        1 {}
+rValue      : NOT(rValue)               1 {}
+rValue      : AND(rValue, rValue)       1 {}
+rValue      : OR(rValue, rValue)        1 {}
+rValue      : ASSIGN(lValue, rValue)    1 {}
+%%

@@ -37,12 +37,12 @@
 #define _STR 2
 #define _VOID 3
 #define NAK_TYP(a) (a % 4)
-#define EQU_TYP(a,b) (NAK_TYP(a) == NAK_TYP(b))
-#define CHE_TYP(a,b) (EQU_TYP(a,b) || (NAK_TYP(a) == 0) && (NAK_TYP(b) == 1))
-#define isArray(a) (NAK_TYP(PLACE(a)) == 0)
-#define isInt(a) (NAK_TYP(PLACE(a)) == 1)
-#define isStr(a) (NAK_TYP(PLACE(a)) == 2)
-#define isVoid(a) (NAK_TYP(PLACE(a)) == 3)
+#define EQU_TYP(a,v) (NAK_TYP(a) == NAK_TYP(PLACE(v)) || IS_NULL(v))
+#define IS_NULL(v) (OP_LABEL(v) == INT && v->value.i == 0)
+#define isArray(v) (NAK_TYP(PLACE(v)) == 0)
+#define isInt(v) (NAK_TYP(PLACE(v)) == 1)
+#define isStr(v) (NAK_TYP(PLACE(v)) == 2)
+#define isVoid(v) (NAK_TYP(PLACE(v)) == 3)
 #define _CONST 4
 #define _FORWARD 8
 #define _PUBLIC 0
@@ -51,8 +51,10 @@
 #define isForward(a) ((a % 16) > 7)
 #define isFunction(a) (a > 15)
 /* Declarations */
-int yylex();
+int yyparse();
 int yyerror(char *s);
+extern int yylex();
+extern int yyselect(Node *);
 extern int errors;
 /* Global Variabes */
 int inMain = 0;
@@ -98,12 +100,12 @@ char buf[120] = "";
 
 %token NIL DECL DECLS LITERALS INTS
 %token VAR V_PRIVACY V_RDONLY V_TYPE V_ID V_DIM INIT F_PRIVACY F_TYPE F_ID PARAMS
-%token CONDITION ELIFS ELSES INSTRS BLOCK EXPR
+%token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS
 %token BODY VARS FETCH LOAD CALL PRIORITY ERROR
 %%
 
-file        : { IDpush(); } program { IDpop(); if (!errors) printNode($2, 0, yynames); freeNode($2); }
-            | { IDpush(); } module  { IDpop(); if (!errors) printNode($2, 0, yynames); freeNode($2); }
+file        : { IDpush(); } program { IDpop(); if (!errors) { printNode($2, 0, yynames); yyselect($2); } freeNode($2); }
+            | { IDpush(); } module  { IDpop(); if (!errors) { printNode($2, 0, yynames); yyselect($2); } freeNode($2); }
             ;
 
 program     : PROGRAM dSEQOPT START { IDpush(); inMain = 1; } body { inMain = 0; IDpop(); } END { $$ = binNode(PROGRAM, $2, $5); }
@@ -212,7 +214,7 @@ iSEQOPT     :                       { $$ = nilNode(NIL); }
             | iSEQ                  { $$ = $1; }
             ;
 
-iSEQ        : instruction           { $$ = binNode(INSTRS, nilNode(ERROR), $1); }
+iSEQ        : instruction           { $$ = binNode(INSTRS, nilNode(NIL), $1); }
             | iSEQ instruction      { $$ = binNode(INSTRS, $1, $2); }
             | iSEQ error iSugar     { $$ = binNode(INSTRS, $1, nilNode(ERROR)); }
             | iSEQ error FI         { $$ = binNode(INSTRS, $1, nilNode(ERROR)); }
@@ -256,7 +258,7 @@ iLast       :                           { $$ = nilNode(NIL); }
                                           if (!cicl) yyerror("[Stop must appear inside of a cicle]"); }
             | RETURN rValueOPT          { $$ = uniNode(RETURN, $2);
                                           if (!blck && (inMain || retType == _VOID)) yyerror("[Return must appear inside of a sub-block]");
-                                          else if (!CHE_TYP(retType, PLACE($2))) yyerror("[Funciton Type != Return Type]"); }
+                                          else if (!EQU_TYP(retType, $2)) yyerror("[Funciton Type != Return Type]"); }
             ;
 
 rValueOPT   :                           { $$ = nilNodeT(NIL, _VOID); }
@@ -270,7 +272,7 @@ lValue      : ID                        { $$ = findID($1, (void **)IDtest);
                                           else $$ = idxNode($$, $3); }
             ;
 
-rValue      : lValue                    { if (isFunction(PLACE($1))) $$ = $1;
+rValue      : lValue                    { if (!isLV($1)) $$ = $1;
                                           else $$ = uniNodeT(LOAD, $1, NAK_TYP(PLACE($1))); }
             | literals                  { $$ = $1; }
             | ID '(' rArgs ')'          { $$ = CALLNode($1, $3); }
@@ -342,13 +344,12 @@ rValue      : lValue                    { if (isFunction(PLACE($1))) $$ = $1;
             | lValue ASSIGN rValue      { $$ = binNode(ASSIGN, $1, $3);
                                           if (!isLV($1)) yyerror("[Functions can not be assigned ':=']");
                                           else if (isConst(PLACE($1))) yyerror("[Constants can not be assigned ':=']");
-                                          else if (OP_LABEL($3) == INT && $3->value.i == 0) PLACE($$) = PLACE($1);
-                                          else if (CHE_TYP(PLACE($1), PLACE($3))) PLACE($$) = PLACE($1);
+                                          else if (EQU_TYP(PLACE($1), $3)) PLACE($$) = PLACE($1);
                                           else yyerror("[Invalid Types to ':=']"); }
             ;
 
-rArgs       : rValue                    { $$ = binNode(PARAMS, nilNode(NIL), $1); }
-            | rArgs ',' rValue          { $$ = binNode(PARAMS, $1, $3); }
+rArgs       : rValue                    { $$ = binNode(ARGS, nilNode(NIL), $1); }
+            | rArgs ',' rValue          { $$ = binNode(ARGS, $1, $3); }
             ;
 %%
 
@@ -387,7 +388,7 @@ static void VARput(Node *var) {
         } else if (!isForward(typ)) {
             sprintf(buf, "[Variable '%s' already defined]", id);
             yyerror(buf);
-        } else if (isConst(typ) != isConst(PLACE(var)) || !EQU_TYP(typ, PLACE(var))) {
+        } else if (isConst(typ) != isConst(PLACE(var)) || NAK_TYP(typ) != NAK_TYP(PLACE(var))) {
             sprintf(buf, "[Variable '%s' already declared with a different Type]", id);
             yyerror(buf);
         } else {
@@ -405,7 +406,7 @@ static Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
         if (isForward(typV)) {
             sprintf(buf, "[Forward Variable '%s' can not be initialized]", id);
             yyerror(buf);
-        } else if (!CHE_TYP(typV, PLACE(init))) {
+        } else if (!(EQU_TYP(typV, init) || (typV == _ARRAY) && isInt(init))) {
             sprintf(buf, "[Invalid Variable '%s' initialization Type]", id);
             yyerror(buf);
         } else if (isArray(var)) {
@@ -428,31 +429,25 @@ static Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
     return binNode(VAR, binNode(V_PRIVACY, qual, binNode(V_RDONLY, cons, var)), init);
 }
 
-static void checkArgs(char *id, Node *params, Node *args, int eq) {
+static void checkArgs(char *id, Node *params, Node *args) {
 
-    if (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL) {
-        do {
-            int parTyp = PLACE(RIGHT_CHILD(params));
-            int argTyp = PLACE(RIGHT_CHILD(args));
+    if (OP_LABEL(params) == NIL && OP_LABEL(args) == NIL) return;
 
-            if (!(eq ? EQU_TYP(parTyp, argTyp) : CHE_TYP(parTyp, argTyp))) {
-                sprintf(buf, "[Invalid Parameter Types to Function '%s']", id);
-                yyerror(buf);
-                break;
-            }
-            params = LEFT_CHILD(params);
-            args = LEFT_CHILD(args);
-            if (OP_LABEL(params) != OP_LABEL(args)) {
-                sprintf(buf, "[Invalid Parameters to Function '%s']", id);
-                yyerror(buf);
-                break;
-            }
-        } while (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL);
+    while (OP_LABEL(params) != NIL && OP_LABEL(args) != NIL) {
+        
+        if (!EQU_TYP(PLACE(RIGHT_CHILD(params)), RIGHT_CHILD(args))) {
+            sprintf(buf, "[Invalid Parameter Types to Function '%s']", id);
+            yyerror(buf);
+            return;
+        }
+        params = LEFT_CHILD(params);
+        args = LEFT_CHILD(args);
 
-    } else if (OP_LABEL(params) != OP_LABEL(args)) {
-        sprintf(buf, "[Invalid Parameters to Function '%s']", id);
-        yyerror(buf);
+        if (OP_LABEL(params) == NIL && OP_LABEL(args) == NIL) return;
     }
+    
+    sprintf(buf, "[Invalid Parameters to Function '%s']", id);
+    yyerror(buf);
 }
 
 static void FUNput(int typF, char *id, Node *params) {
@@ -470,11 +465,11 @@ static void FUNput(int typF, char *id, Node *params) {
         } else if (!isForward(typ)) {
             sprintf(buf, "[Function '%s' already defined]", id);
             yyerror(buf);
-        } else if (!EQU_TYP(typ, retType)) {
-            sprintf(buf, "[Function '%s' already declared with different Parameter Types]", id);
+        } else if (NAK_TYP(typ) != NAK_TYP(typF)) {
+            sprintf(buf, "[Function '%s' already declared with a different Type]", id);
             yyerror(buf);
         } else {
-            checkArgs(id, *p, params, 1);
+            checkArgs(id, params, *p);
             IDchange(typF, id, params, 1);
         }
     }
@@ -511,7 +506,7 @@ static Node *CALLNode(char *id, Node *args) {
     Node *idN = findID(id, (void **)p);
 
     if (isFunction(PLACE(idN))) {
-        checkArgs(id, *p, args, 0);
+        checkArgs(id, *p, args);
     } else {
         sprintf(buf, "[The Identifier '%s' must be a Function]", id);
         yyerror(buf);

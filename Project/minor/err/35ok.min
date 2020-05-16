@@ -1,5 +1,5 @@
 program
-	number n := -12
+	number n := 076
 start
 	n! "\n"!
 end

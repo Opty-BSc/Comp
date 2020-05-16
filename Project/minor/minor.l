@@ -8,20 +8,24 @@ int strtoi(char *s, int b);
 char *dupstr(const char *s);
 int yyerror(char *s);
 %}
+IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
 DECIMAL     (0|[1-9][0-9]*)
 HEXA        [A-Fa-f0-9]+
 BINARY      [01]+
 OCTAL       [0-7]+
-IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
+H           [A-Fa-f0-9]
 %x CZ
 %x PT
+%x FIN
 %%
 
 <INITIAL,CZ>^"program"      BEGIN CZ; return PROGRAM;
 <INITIAL,CZ>^"module"       BEGIN CZ; return MODULE;
 <INITIAL>.|\n               ;/* Non Program / Module Content */
 
-<CZ>^"end"          BEGIN INITIAL; return END;
+<CZ>^"end"                  BEGIN FIN; return END;
+<FIN>.|\n                   return 0;
+
 <CZ>"$$".*\n        ;/* Explanatory Comments */
 <CZ>"$"[^$]*"$"     ;/* Operational Comments */
 
@@ -59,20 +63,22 @@ IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
 <CZ>0{OCTAL}        { yylval.i = strtoi(yytext + 1, 8);  return INT; }
 
 <CZ>\"              BEGIN PT;
-<PT>\"              { yytext[yyleng-1] = 0; yylval.s = dupstr(yytext); BEGIN CZ; return STR; }
-<PT>\\[n]           { yytext[yyleng-2] = '\n'; yytext[yyleng-1] = 0; yymore(); }
-<PT>\\[t]           { yytext[yyleng-2] = '\t'; yytext[yyleng-1] = 0; yymore(); }
-<PT>\\[r]           { yytext[yyleng-2] = '\r'; yytext[yyleng-1] = 0; yymore(); }
-<PT>\\[\\"]         { yytext[yyleng-2] = yytext[yyleng-1]; yytext[yyleng-1] = 0; yymore(); }
-<PT>.               { yymore(); }
+<PT>\"              { yytext[0] = 0; yylval.s = dupstr(yytext); BEGIN CZ; return STR; }
+<PT>\\[n]           { yytext[0] = '\n'; yytext[1] = 0; yymore(); }
+<PT>\\[t]           { yytext[0] = '\t'; yytext[1] = 0; yymore(); }
+<PT>\\[r]           { yytext[0] = '\r'; yytext[1] = 0; yymore(); }
+<PT>\\[\\"]         { yytext[0] = yytext[1]; yytext[1] = 0; yymore(); }
+<CZ>\\{H}{H}        { yytext[0] = strtoi(yytext + 1, 16); yytext[1] = yytext[2] = 0; yymore(); }
+<CZ>\\{H}           { yytext[0] = strtoi(yytext + 1, 16); yytext[1] = 0; yymore();}
+<PT>.|\n            { yymore(); }
 
 <CZ>\'\\[n]\'       { yylval.c = '\n'; return CHAR; }
 <CZ>\'\\[t]\'       { yylval.c = '\t'; return CHAR; }
 <CZ>\'\\[r]\'       { yylval.c = '\r'; return CHAR; }
-<CZ>\'(\\[\\']|[^\\])\'                 { yylval.c = yytext[yyleng-2];       return CHAR; }
-<CZ>\'\\[A-Fa-f0-9][A-Fa-f0-9]?\'       { yylval.c = strtoi(yytext + 2, 16); return CHAR; }
+<CZ>\'(\\[\\']|[^\\])\' { yylval.c = yytext[yyleng-2];       return CHAR; }
+<CZ>\'\\{H}{H}?\'       { yylval.c = strtoi(yytext + 2, 16); return CHAR; }
 
-<CZ>[-+*/%^:=<>~|&~?#\[\]();:!,]        return *yytext;
+<CZ>[-+*/%^:=<>~|&~?#\[\]();:!,]        return yytext[0];
 <CZ>[\ \n\r\t]+     /* Whitespaces */   ;
 <CZ>.               /*  Something  */   { yyerror("Unknown Character"); }
 
