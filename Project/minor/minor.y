@@ -5,51 +5,8 @@
 #include <string.h>
 #include "node.h"
 #include "tabid.h"
+#include "minor.h"
 #define YYDEBUG 1
-/*
-0 ARRAY
-1 INT
-2 STR
-3 VOID
-4 CONST ARRAY
-5 CONST INT
-6 CONST STR
-7 CONST VOID
-8 FORWARD ARRAY
-9 FORWARD INT
-10 FORWARD STR
-11 FORWARD VOID
-12 FORWARD CONST ARRAY
-13 FORWARD CONST INT
-14 FORWARD CONST STR
-15 FORWARD CONST VOID
-16 FUNCTION ARRAY
-17 FUNCTION INT
-18 FUNCTION STR
-19 FUNCTION VOID
-24 FORWARD FUNCTION ARRAY
-25 FORWARD FUNCTION INT
-26 FORWARD FUNCTION STR
-27 FORWARD FUNCTION VOID
-*/
-#define _ARRAY 0
-#define _INT 1
-#define _STR 2
-#define _VOID 3
-#define NAKED_TYPE(a) (a % 4)
-#define SAME_TYPE(a, n) (NAKED_TYPE(a) == NAKED_TYPE(PLACE(n)) || isNull(n))
-#define isNull(n) (OP_LABEL(n) == INT && n->value.i == 0)
-#define isArray(n) (NAKED_TYPE(PLACE(n)) == 0)
-#define isInt(n) (NAKED_TYPE(PLACE(n)) == 1)
-#define isStr(n) (NAKED_TYPE(PLACE(n)) == 2)
-#define isVoid(n) (NAKED_TYPE(PLACE(n)) == 3)
-#define _CONST 4
-#define _FORWARD 8
-#define _PUBLIC 0
-#define _FUNCTION 16
-#define isConst(a) ((a % 8) > 3)
-#define isForward(a) ((a % 16) > 7)
-#define isFunction(a) (a > 15)
 /* Declarations */
 int yyparse();
 int yyerror(char *s);
@@ -99,7 +56,7 @@ char buf[120] = "";
 %type <n> qualifier constant type fType
 
 %token NIL DECL DECLS LITERALS INTS
-%token VAR V_PRIVACY V_RDONLY V_TYPE V_ID V_DIM INIT F_PRIVACY F_TYPE F_ID PARAMS F_BODY
+%token VAR V_LBL V_RDONLY V_TYPE V_ID V_DIM INIT FUNC F_HEAD F_LBL F_ID PARAMS F_BODY
 %token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
 %token BODY VARS FETCH LOAD CALL PRIORITY ERROR
 %%
@@ -178,7 +135,7 @@ integerSEQ  : INT                   { $$ = binNodeT(INTS, nilNode(NIL), intNode(
 function    : FUNCTION qualifier fType ID   { retType = PLACE($3); IDpush(); }
               fParamsOPT                    { FUNput(PLACE($2) + retType + _FUNCTION, $4, $6); }
               fBody                         { IDpop(); retType = _INT;
-                                              $$ = binNode(FUNCTION, binNode(F_PRIVACY, $2, binNode(F_TYPE, $3, binNode(F_ID, strNode(ID, $4), $6))), $8);
+                                              $$ = binNode(FUNC, binNode(F_HEAD, binNode(F_LBL, $2, binNode(F_ID, $3, strNode(ID, $4))), $6), $8);
                                               if (OP_LABEL($2) == FORWARD && OP_LABEL($8) != DONE) yyerror("[Forward Function must not have a Body]");
                                               else if (OP_LABEL($2) != FORWARD && OP_LABEL($8) == DONE) yyerror("[Function with empty Body must be Forward]"); }
             ;
@@ -426,7 +383,7 @@ static Node *VARNode(Node *qual, Node *cons, Node *var, Node *init) {
 
     PLACE(var) = typV;
     VARput(var);
-    return binNode(VAR, binNode(V_PRIVACY, qual, binNode(V_RDONLY, cons, var)), init);
+    return binNode(VAR, binNode(V_LBL, qual, binNode(V_RDONLY, cons, var)), init);
 }
 
 static void checkArgs(char *id, Node *params, Node *args) {

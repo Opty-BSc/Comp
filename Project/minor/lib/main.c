@@ -19,7 +19,7 @@ int yyerror(char *s) {
     return 1;
 }
 
-char *dupstr(const char *s) {
+char *dupStr(const char *s) {
     char *d;
     if (s == 0) return 0;
     d = (char*)malloc(strlen(s)+1);
