@@ -83,7 +83,8 @@ extern int debugNode;
 #define LEFT_CHILD(p)  ((p)->type == nodeOpr && (p)->value.sub.num > 0 ? (p)->value.sub.n[0] : 0)
 #define RIGHT_CHILD(p) ((p)->type == nodeOpr && (p)->value.sub.num > 1 ? (p)->value.sub.n[1] : 0)
 #define STATE_LABEL(p) ((p)->state)
-#define PLACE(p) ((p)->info)
+#define INFO(p) ((p)->info)
+#define PLACE(p) ((p)->place)
 #define SUB(x)	value.sub.n[x]
 
 #endif /* __NODE_H__ */

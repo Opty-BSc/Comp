@@ -12,6 +12,8 @@ global errno
 errno	dd	0
 
 segment	.text
+global _brk
+_brk:	jmp brk
 
 sys5:
 	mov	edi, [esp+20]

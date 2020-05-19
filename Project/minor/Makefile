@@ -9,7 +9,7 @@ BURG=pburg
 CC=gcc
 CFLAGS=-g -DYYDEBUG
 AS=nasm -felf32
-LD=ld -m elf_i386
+LD=ld -melf_i386
 LDLIB=run/lib$(LANG).a
 
 $(LANG): minor.l minor.y minor.brg

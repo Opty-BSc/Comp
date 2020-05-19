@@ -12,22 +12,27 @@ char *dupStr(char *);
 extern FILE *yyout;
 
 static int lbl;
-static char *extrns[100];
-static int extcnt;
-static char chPtr[2];
-static char bufLSeq[80];
+static char *externs[100];
+static int ecnt;
+static int chLoad;
 
 /* Function Declarations */
-static int _isChar(Node *);
-static int _isInt(Node *);
-static int _isStr(Node *);
-static int _isArr(Node *);
-static char *makeLbl(int);
-static char *makeFid(char *);
+static char *mkLbl(int);
+static char *mkFid(char *);
+static void Int(int);
+static void Str(char *);
+static int IntS(Node *);
+static void Array(Node *, Node *);
+static void LitS(Node *);
+static void newIMMInt(int );
 static void newIMMStr(char *);
-void externs();
-void doFunction(char *, int, Node *);
-void doPow();
+static void newIMMLitS(Node *);
+static void doCall(int, char *, int);
+static void popExtern(char *);
+static void decExterns();
+void decVar(int, char *, Node *, Node *);
+void doMain(int, Node *);
+void doFunc(int, char *, int, Node *);
 %}
 %include "y.tab.h"
 %term EXPRFI = ';' ECHO = '!' ALLOC = '#' INPUT = '?'
@@ -35,42 +40,12 @@ void doPow();
 %term LESSER = '<' BIGGER = '>' EQ = '=' NOT = '~' AND = '&' OR = '|'
 %%
 
-file        : MODULE(dSEQ)              1 {}
-file        : PROGRAM(dSEQ, body)       1 {
-    fprintf(yyout, pfIMM pfPOP pfLEAVE pfRET, 0);
-}
+body        : BODY(vSEQ, iBlock)        1 {}
 
-dSEQ        : DECLS(dSEQ, dec)  1 {}
-dSEQ        : NIL
+vSEQ        : VARS(vSEQ, variable)      1 {}
+vSEQ        : NIL                       1 {}
 
-%! Function
-dec         : FUNC(funcHead, funcBody)  1 {
-}
-
-funcHead    : F_HEAD(funcLbl, pSEQ) 1 {
-}
-
-funcLbl     : F_LBL(qual, F_ID(typeOrVoid, ID)) 1 {
-}
-%! Function End
-
-%! Variable
-dec         : VAR(varLbl, INIT(values)) 1 {
-}
-
-varLbl      : V_LBL(qual, V_RDONLY(cons, var))  1 {
-}
-
-var         : V_TYPE(type, V_ID(ID, size))  1 {
-}
-%! Variable End
-
-qual        : PUBLIC                    1 {}
-qual        : FORWARD                   1 {}
-qual        : NIL                       1 {}
-
-cons        : CONST                     1 {}
-cons        : NIL                       1 {}
+variable    : V_TYPE(type, V_ID(ID, size))  1 {}
 
 type        : ARRAY                     1 {}
 type        : NUMBER                    1 {}
@@ -79,45 +54,10 @@ type        : STRING                    1 {}
 size        : V_DIM                     1 {}
 size        : NIL                       1 {}
 
-values      : lSEQ                      1 {}
-values      : integerSEQ                1 {}
-values      : literal                   1 {}
-values      : NIL                       1 {}
-
-lSEQ        : LITERALS(lSEQ, nakLit)
-lSEQ        : NIL                       1 { memset(bufLSeq, '\0', sizeof(bufLSeq)); }
-
-nakLit      : INT                       1 { chPtr[0] = p->value.i; strcat(bufLSeq, chPtr); }
-nakLit      : CHAR                      1 { chPtr[0] = p->value.i; strcat(bufLSeq, chPtr); }
-nakLit      : STR                       1 { strcat(bufLSeq, p->value.s); }
-
-literal     : INT                       1 { fprintf(yyout, pfIMM, p->value.i); }
-literal     : CHAR                      1 { chPtr[0] = p->value.i; newIMMStr(chPtr); }
-literal     : STR                       1 { newIMMStr(p->value.s); }
-
-integerSEQ  : INTS(integerSEQ, INT)     1 {}
-integerSEQ  : NIL                       1 {}
-
-typeOrVoid  : type                      1 {}
-typeOrVoid  : VOID                      1 {}
-
-pSEQ        : PARAMS(pSEQ, var)         1 {}
-pSEQ        : NIL                       1 {}
-
-funcBody    : DONE                      1 {}
-funcBody    : F_BODY(body)              1 {}
-
-body        : BODY(vSEQ, iBlock)        1 {}
-
-vSEQ        : VARS(vSEQ, var)           1 {}
-vSEQ        : NIL                       1 {}
-
 iBlock      : BLOCK(iSEQ, iLast)        1 {}
 
 iSEQ        : INSTRS(iSEQ, instruction) 1 {}
-iSEQ        : NIL                       1 {
-    fprintf(yyout, pfTEXT pfALIGN pfGLOBL pfLABEL pfENTER, "_main", pfFUNC, "_main", 0);
-}
+iSEQ        : NIL                       1 {}
 
 iLast       : REPEAT                    1 {}
 iLast       : STOP                      1 {}
@@ -126,43 +66,49 @@ iLast       : RETURN(rValue)            1 {}
 iLast       : NIL                       1 {}
 
 instruction : EXPR(rValue, EXPRFI)      1 {}
-instruction : EXPR(rValue, ECHO)        1 {
-    char *echo = _isStr(p) == 1 || _isChar(p) == 1 ? "_prints" : "_printi";
-
-    fprintf(yyout, pfEXTRN pfCALL pfTRASH pfPUSH, echo, echo, pfWORD);
-}
+instruction : EXPR(rValue, ECHO)        1 { doCall(1, isStr(LEFT_CHILD(p)) ? "prints" : "printi", pfWORD); }
 
 instruction : ALLOC(lValue, rValue)     1 {}
 
-instruction : CONDITION(IF(rValue, THEN(iBlock)), ELSES(iElifSEQ, iElse)) 1 {}
+instruction : CONDITION(IF(rValue, THEN(iBlock)), ELSES(iElifSEQ, iElse))   1 {}
 
 instruction : FOR(rValue, UNTIL(rValue, STEP(rValue, DO(iBlock))))  1 {}
 
-iElifSEQ    : ELIFS(iElifSEQ, ELIF(rValue, THEN(iBlock))) 1 {}
+iElifSEQ    : ELIFS(iElifSEQ, ELIF(rValue, THEN(iBlock)))   1 {}
 
 iElifSEQ    : NIL                       1 {}
 
 iElse       : ELSE(iBlock)              1 {}
 iElse       : NIL                       1 {}
 
-lValue      : FETCH(ID)                 1 {}
-lValue      : LINDEX(FETCH(ID), rValue) 1 {}
+lValue      : FETCH(ID)                 1 { fprintf(yyout, pfADDR, LEFT_CHILD(p)->value.s); }
+lValue      : LINDEX(lVec, rValue)      1 { chLoad = isStr(LEFT_CHILD(p)); fprintf(yyout, pfIMM pfMUL pfADD, chLoad ? 1 : 4); }
 
-funcCall    : CALL(FETCH(ID), aSEQ)     1 {}
+lVec        : FETCH(ID)                 1 { fprintf(yyout, pfADDRV, LEFT_CHILD(p)->value.s); }
 
-aSEQ        : ARGS(aSEQ, rValue)        1 {}
-aSEQ        : NIL                       1 {}
+call        : CALL(FETCH(ID), aSEQ)     1 { doCall(0, LEFT_CHILD(LEFT_CHILD(p))->value.s, (int)(PLACE(RIGHT_CHILD(p)))); }
 
-rValue      : LOAD(lValue)              1 {}
-rValue      : funcCall                  1 {}
-rValue      : RINDEX(funcCall, rValue)  1 {}
-rValue      : literal                   1 {}
-rValue      : lSEQ                      1 { newIMMStr(bufLSeq); }
+aSEQ        : ARGS(aSEQ, rValue)        1 { PLACE(p) = PLACE(LEFT_CHILD(p)) + (isInt(RIGHT_CHILD(p)) ? 4 : pfWORD); }
+aSEQ        : NIL                       1 { PLACE(p) = 0; }
+
+lSEQ        : LITERALS(lSEQ, lSEQ)
+lSEQ        : INT                       1
+lSEQ        : CHAR                      1
+lSEQ        : STR                       1
+lSEQ        : NIL
+
+rValue      : INT                       1 { newIMMInt(p->value.i); }
+rValue      : CHAR                      1 { newIMMInt(p->value.i); }
+rValue      : STR                       1 { newIMMStr(p->value.s); }
+rValue      : lSEQ                      1 { newIMMLitS(p); }
+rValue      : LOAD(lValue)              1 { fprintf(yyout, chLoad ? pfLDCHR : pfLOAD); chLoad = 0; }
+rValue      : call                      1 {}
+rValue      : RINDEX(call, rValue)      1 {}
 rValue      : PRIORITY(rValue)          1 {}
 rValue      : INPUT                     1 {}
 rValue      : ADDR(lValue)              1 {}
-rValue      : UMINUS(rValue)            1 { fprintf(yyout, pfIMM pfMUL, -1);}
-rValue      : POW(rValue, rValue)       1 { doPow(); }
+rValue      : UMINUS(rValue)            1 { fprintf(yyout, pfNEG); }
+rValue      : POW(rValue, rValue)       1 { doCall(1, "poweri", 8); }
 rValue      : MUL(rValue, rValue)       1 { fprintf(yyout, pfMUL); }
 rValue      : DIV(rValue, rValue)       1 { fprintf(yyout, pfDIV); }
 rValue      : MOD(rValue, rValue)       1 { fprintf(yyout, pfMOD); }
@@ -180,95 +126,206 @@ rValue      : OR(rValue, rValue)        1 {}
 rValue      : ASSIGN(lValue, rValue)    1 {}
 %%
 
-static int _isChar(Node *p) {
-    return OP_LABEL(LEFT_CHILD(p)) == CHAR ? 1 : 0x7FFF;
-}
-
-static int _isInt(Node *p) {
-    return isInt(LEFT_CHILD(p)) ? 1 : 0x7FFF;
-}
-
-static int _isStr(Node *p) {
-    return isStr(LEFT_CHILD(p)) ? 1 : 0x7FFF;
-}
-
-static int _isArr(Node *p) {
-    return isArray(LEFT_CHILD(p)) ? 1 : 0x7FFF;
-}
-
-static char *makeLbl(int lb) {
+static char *mkLbl(int lb) {
     static char buf[20];
     sprintf(buf, "_i%d", lb);
     return buf;
 }
 
-static char *makeFid(char *s) {
+static char *mkFid(char *s) {
     static char buf[80];
     sprintf(buf, "_%s", s);
     return buf;
 }
 
-static void newIMMStr(char *s) {
+static void Int(int i) {
+    
+    fprintf(yyout, pfINTEGER, i);
+}
 
-    char *lb = makeLbl(++lbl);
-    fprintf(yyout, pfRODATA pfALIGN pfLABEL, lb);
+static void Str(char *s) {
 
     do fprintf(yyout, pfCHAR, UC(*s));
     while (*s++);
+}
 
+static int IntS(Node *p) {
+
+    if (OP_LABEL(p) == NIL) return 0;
+    int cnt = IntS(LEFT_CHILD(p));
+
+    fprintf(yyout, pfINTEGER, RIGHT_CHILD(p)->value.i);
+    return ++cnt;
+}
+
+static void Array(Node *p, Node *sz) {
+
+    int cnt = OP_LABEL(sz) != NIL ? sz->value.i : 0;
+
+    switch (OP_LABEL(p)) {
+        case INTS:
+            cnt -= IntS(p);
+            break;
+        case INT:
+            fprintf(yyout, pfINTEGER, p->value.i);
+            cnt--;
+            break;
+    }
+
+    if (cnt > 0) fprintf(yyout, pfBYTE, 4 * cnt);
+}
+
+static void LitS(Node *p) {
+
+    static int nRec = 0;
+
+    if (OP_LABEL(p) == NIL) return;
+    nRec++;
+    LitS(LEFT_CHILD(p));
+
+    Node *val = RIGHT_CHILD(p);
+
+    switch (OP_LABEL(val)) {
+        case CHAR:
+        case INT:
+            fprintf(yyout, pfCHAR, UC(val->value.i));
+            break;
+        case STR:
+            for (char *s = val->value.s; s[0]; s++)
+                fprintf(yyout, pfCHAR, UC(s[0]));
+            break;
+    }
+
+    if (!(--nRec)) fprintf(yyout, pfCHAR, '\0');
+}
+
+static void newIMMInt(int i) {
+
+    fprintf(yyout, pfIMM, i);
+}
+
+static void newIMMStr(char *s) {
+
+    char *lb = mkLbl(++lbl);
+
+    fprintf(yyout, pfRODATA pfALIGN pfLABEL, lb);
+    Str(s);
     fprintf(yyout, pfTEXT pfADDR, lb); 
 }
 
-void externs() {
-    for (int i = 0; i < extcnt; i++) {
-        if (extrns[i]) fprintf(yyout, pfEXTRN, extrns[i]);
+static void newIMMLitS(Node *p) {
+
+    char *lb = mkLbl(++lbl);
+
+    fprintf(yyout, pfRODATA pfALIGN pfLABEL, lb);
+    LitS(p);
+    fprintf(yyout, pfTEXT pfADDR, lb); 
+}
+
+static void doCall(int ext, char *id, int nB) {
+
+    if (ext) fprintf(yyout, pfEXTRN, mkFid(id));
+
+    fprintf(yyout, pfCALL pfTRASH pfPUSH, mkFid(id), nB);
+}
+
+static void popExtern(char *id) {
+    
+    for (int i = 0; i < ecnt; i++) {
+        if (externs[i] && !strcmp(externs[i], id)) {
+            free(externs[i]);
+            externs[i] = NULL;
+        }
     }
 }
 
-void doFunction(char *id, int nParams, Node *body) {
+static void decExterns() {
 
-    id = makeFid(id);
-
-    fprintf(yyout, pfTEXT pfALIGN pfGLOBL pfLABEL pfENTER, id, pfFUNC, id, nParams);
-    yyselect(body);
-    fprintf(yyout, pfPOP pfLEAVE pfRET);
+    for (int i = 0; i < ecnt; i++) {
+        if (externs[i]) {
+            fprintf(yyout, pfEXTRN, externs[i]);
+            free(externs[i]);
+            externs[i] = NULL;
+        }
+    }
 }
 
-void doPow() {
+void decVar(int typ, char *id, Node *sz, Node *val) {
 
-    char *_Z = dupStr(makeLbl(++lbl));
-    char *_LTZ = dupStr(makeLbl(++lbl));
-    char *_GTZ = dupStr(makeLbl(++lbl));
-    char *_FI = dupStr(makeLbl(++lbl));
+    popExtern(id);
 
-    fprintf(yyout, pfCOPY pfJZ, _Z);
+    if (OP_LABEL(val) != NIL) {
+        /* Initialized */
+        if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfFUNC);
 
-    fprintf(yyout, pfCOPY pfIMM pfJLT, 0, _LTZ);
+    } else {
 
-    fprintf(yyout, pfIMM pfSUB pfCOPY pfJNZ, 1, _GTZ);
+        if (isForw(typ)) {
+            externs[ecnt++] = dupStr(id);
+            return;
+        }
+        if (OP_LABEL(sz) == NIL) {
+            int nB = NAKED_TYPE(typ) == _INT ? 4 : pfWORD;
 
-    fprintf(yyout, pfTRASH pfJMP, 4, _FI);
+            fprintf(yyout, pfBSS pfALIGN pfLABEL pfBYTE pfTEXT, id, nB);
+            return;
+        }
+    }
 
-    fprintf(yyout, pfLABEL, _GTZ);
+    if (isConst(typ)) fprintf(yyout, pfRODATA);
+    else fprintf(yyout, pfDATA);
 
-    fprintf(yyout, pfSWAP pfCOPY pfMUL pfSWAP);
+    fprintf(yyout, pfALIGN pfLABEL, id);
 
-    fprintf(yyout, pfIMM pfSUB pfCOPY pfJNZ, 1, _GTZ);
+    if (NAKED_TYPE(typ) == _INT) Int(val->value.i);
+    else {
+        /* Create Ptr */
+        char *lb = mkLbl(++lbl);
+        /* Ptr Init */
+        switch (OP_LABEL(val)) {
+            case NIL:
+            case INT:
+            case INTS:
+                fprintf(yyout, pfID pfLABEL, lb, lb);
+                Array(val, sz);
+                break;
+            case STR:
+                fprintf(yyout, pfID pfRODATA pfLABEL, lb, lb);
+                Str(val->value.s);
+                break;
+            case LITERALS:
+                fprintf(yyout, pfID pfRODATA pfLABEL, lb, lb);
+                LitS(val);
+                break;
+        }
+    }
+}
 
-    fprintf(yyout, pfTRASH pfJMP, 4, _FI);
+void doMain(int enter, Node *body) {
 
-    fprintf(yyout, pfLABEL, _Z);
+    char *id = mkFid("main");
 
-    fprintf(yyout, pfTRASH pfIMM pfJMP, 8, 1, _FI);
-    
-    fprintf(yyout, pfLABEL, _LTZ);
+    fprintf(yyout, pfTEXT pfALIGN pfGLOBL pfLABEL pfENTER, id, pfFUNC, id, enter);
+    yyselect(body);
+    fprintf(yyout, pfIMM pfPOP pfLEAVE pfRET, 0);
 
-    fprintf(yyout, pfTRASH pfIMM, 8, 0);
+    decExterns();
+}
 
-    fprintf(yyout, pfLABEL, _FI);
-    
-    free(_Z);
-    free(_LTZ);
-    free(_GTZ);
-    free(_FI);
+void doFunc(int typ, char *id, int enter, Node *p) {
+
+    id = mkFid(id);
+    popExtern(id);
+
+    if (OP_LABEL(p) == DONE) {
+        externs[ecnt++] = dupStr(id);
+        return;
+    }
+
+    fprintf(yyout, pfTEXT pfALIGN);
+    if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfFUNC);
+
+    fprintf(yyout, pfLABEL pfENTER, id, enter);
+    yyselect(LEFT_CHILD(p));
+    fprintf(yyout, pfLEAVE pfRET);
 }
