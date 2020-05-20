@@ -3,10 +3,11 @@
 #include <limits.h>
 #include "node.h"
 #include "y.tab.h"
-
-int strtoi(char *, int);
-char *dupStr(char *);
-int yyerror(char *);
+/* Declarations */
+extern int yyerror(char *s);
+extern char *dupStr(const char *s);
+/* In File Declarations */
+int strtoi(char *s, int b);
 %}
 IDENTIFIER  [A-Za-z][A-Za-z0-9_]*
 DECIMAL     (0|[1-9][0-9]*)

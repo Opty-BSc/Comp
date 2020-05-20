@@ -16,7 +16,8 @@
 #define isConst(a) ((a % 8) > 3)
 #define isForw(a) ((a % 24) > 15)
 #define isPubl(a) ((a % 24) > 7 && !isForw(a))
-#define isFunction(a) (a > 23)
+#define isFunc(a) (a > 23)
+#define typBytes(a) (NAKED_TYPE(a) == 1 ? 4 : pfWORD)
 #define UC(c) ((unsigned char)c)
 
 /*
