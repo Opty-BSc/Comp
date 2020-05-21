@@ -11,7 +11,7 @@ function number ackermann number m ; number n do
   return ackermann(m-1, ackermann(m, n-1))
 start
   if argc > 2 then
-     ackermann(atoi(argv(1)), atoi(argv(2)))! " #"! cnt! ""!
+     ackermann(atoi(argv(1)), atoi(argv(2)))! " #"! cnt! "\n"!
   fi
 end
 Fim da funcao de ackermann

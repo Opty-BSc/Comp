@@ -1,32 +1,31 @@
 LANG=minor
-LIB=lib
-EXS=exs
-UTIL=util
-RUN=run
-LEX=flex
-YACC=byacc
-BURG=pburg
+EXT=min# File Extension: .$(EXT)
+LIB=lib# Compiler Library Directory
+UTIL=util# Compiler Library: lib$(LIB).a
+RUN=run# Runtime Directory
+EXS=exs# Examples Directory
 CC=gcc
 CFLAGS=-g -DYYDEBUG
 AS=nasm -felf32
 LD=ld -melf_i386
-LDLIB=run/lib$(LANG).a
+LDLIBS=lib$(LANG).a
 
-$(LANG): minor.l minor.y minor.brg
+$(LANG): $(LANG).y $(LANG).l $(LANG).brg
 	make -C $(LIB)
+	byacc -dv $(LANG).y
+	flex -dl $(LANG).l
+	pburg -T $(LANG).brg
+	$(LINK.c) -o $(LANG) $(ARCH) -I$(LIB) lex.yy.c y.tab.c yyselect.c -L$(LIB) -l$(UTIL)
 	make -C $(RUN)
-	$(LEX) -dl minor.l
-	$(YACC) -dv minor.y
-	$(BURG) -T minor.brg
-	$(CC) $(CFLAGS) -o $(LANG) -I$(LIB) lex.yy.c y.tab.c yyselect.c -L$(LIB) -l$(UTIL)
-	rm -f lex.yy.c y.tab.c y.tab.h y.output yyselect.c
+	-cp $(RUN)/$(LDLIBS) .
 
 %: %.asm
 	$(AS) $*.asm
-	$(LD) -o $@ $*.o $(LDLIB)
-	rm -f $*.o
+	$(LD) $*.o $(LDLIBS) -o out
+	./out
 
 clean::
 	make -C $(LIB) clean
 	make -C $(RUN) clean
-	rm -f $(LANG) *.asm *~ $(EXS)/*.asm $(EXS)/*~ lex.yy.c y.tab.c y.tab.h y.output yyselect.c *.o out
+	rm -f $(LANG) $(LDLIBS) *.o *.asm *~ lex.yy.c y.tab.c y.tab.h y.output yyselect.c out
+	rm -f $(EXS)/*.o $(EXS)/*.asm $(EXS)/*~

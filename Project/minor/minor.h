@@ -1,26 +1,40 @@
+#ifndef _MINOR_H_
+#define _MINOR_H_
+
 #define _ARRAY 0
 #define _INT 1
 #define _STR 2
 #define _VOID 3
-#define NAKED_TYPE(a) (a % 4)
-#define SAME_TYPE(a, p) (NAKED_TYPE(a) == NAKED_TYPE(INFO(p)) || isNull(p))
-#define isNull(p) (OP_LABEL(p) == INT && p->value.i == 0)
-#define isArray(p) (NAKED_TYPE(INFO(p)) == 0)
-#define isInt(p) (NAKED_TYPE(INFO(p)) == 1)
-#define isStr(p) (NAKED_TYPE(INFO(p)) == 2)
-#define isVoid(p) (NAKED_TYPE(INFO(p)) == 3)
 #define _CONST 4
 #define _PUBLIC 8
 #define _FORWARD 16
 #define _FUNCTION 24
+
+#define isArray(p) (NAKED_TYPE(INFO(p)) == 0)
+#define isInt(p) (NAKED_TYPE(INFO(p)) == 1)
+#define isStr(p) (NAKED_TYPE(INFO(p)) == 2)
+#define isVoid(p) (NAKED_TYPE(INFO(p)) == 3)
+
 #define isConst(a) ((a % 8) > 3)
 #define isForw(a) ((a % 24) > 15)
 #define isPubl(a) ((a % 24) > 7 && !isForw(a))
 #define isFunc(a) (a > 23)
-#define typBytes(a) (NAKED_TYPE(a) == 1 ? 4 : pfWORD)
+
+#define NAKED_TYPE(a) (a % 4)
+#define isNull(p) (OP_LABEL(p) == INT && p->value.i == 0)
+#define SAME_TYPE(a, p) (NAKED_TYPE(a) == NAKED_TYPE(INFO(p)) || isNull(p))
+
+#include "postfix.h"
+#define INT_SZ 4
+#define CH_SZ 1
+#define PTR_SZ pfWORD
+#define typeBytes(a) (NAKED_TYPE(a) == 1 ? INT_SZ : PTR_SZ)
+#define eleBytes(a) (NAKED_TYPE(a) == 2 ? CH_SZ : INT_SZ)
 #define UC(c) ((unsigned char)c)
 
-/*
+#endif /* _MINOR_H_ */
+
+/* Type Guide
 0 ARRAY
 1 INT
 2 STR

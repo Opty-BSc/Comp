@@ -6,6 +6,7 @@
 
 #ifdef underscore
 #define poweri _poweri
+#define strcmp _strcmp
 #define prints _prints
 #define printr _printr
 #define printd _printd
@@ -33,6 +34,14 @@ int poweri(int e, int b) {
 		for (int ob = b; --e > 0; b *= ob);
 		return b;
 	} else return !e;
+}
+
+int strcmp(char *b, char *a) {
+
+	if (!(a && b)) return -1;
+
+	while (*a && *a == *b) { a++; b++; }
+	return *a - *b;
 }
 
 int readr(void) {

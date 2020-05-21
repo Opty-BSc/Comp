@@ -6,11 +6,11 @@ start
 	n := ?;
 	for i := 0 until i = 10 step i := i + 1 do
 		if v[i] = n then
-			"found "! n! " at position "! i! ""!
+			"found "! n! " at position "! i! "\n"!
 			stop
 		fi
 	done
 	if i = 10 then
-		n! " not found"!
+		n! " not found\n"!
 	fi
 end

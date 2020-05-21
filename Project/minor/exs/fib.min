@@ -8,5 +8,5 @@ function number fib number n do
 
 start
   "Qual o termo da série de Fibonacci a calcular: "!
-  fib(?)! ""!
+  fib(?)! "\n"!
 end

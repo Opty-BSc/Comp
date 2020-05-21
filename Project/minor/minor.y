@@ -5,16 +5,17 @@
 #include <string.h>
 #include "node.h"
 #include "tabid.h"
-#include "postfix.h"
 #include "minor.h"
 #define YYDEBUG 1
 /* Declarations */
-extern int yyerror(char *s);
+extern int trace;
 extern int errors;
+extern int yyerror(char *s);
 extern int yyparse();
 extern int yylex();
+extern int yyselres;
 extern void doMain(int enter, Node *body);
-extern void doFunc(int typ, char *id, int enter, Node *body);
+extern void doFunc(int typ, char *id, int enter, Node *params, Node *body);
 extern void decVar(int typ, char *id, Node *sz, Node *val);
 /* In File Declarations */
 static Node *nilNodeT(int tok, int info);
@@ -27,6 +28,7 @@ static Node *findID(char *id, void **attrib);
 static Node *idxNode(Node *ptr, Node *expr);
 static int isLV(Node *ptr);
 static Node *callNode(char *id, Node *args);
+static void evaluate(Node *p);
 /* Global Variabes */
 static int inMain;
 static int alen;
@@ -35,8 +37,8 @@ static int cicl;
 static int pos;
 static int retType = _INT;
 static char buf[120] = "";
-static int pbuf[80];
-static int pcnt;
+static int posbuf[80];
+static int poscnt;
 %}
 
 %union {
@@ -55,7 +57,7 @@ static int pcnt;
 %left '+' '-'
 %left '*' '/' '%'
 %right '^'
-%nonassoc ADDR UMINUS '?'
+%nonassoc PTR UMINUS '?'
 %nonassoc '(' ')' '[' ']'
 
 %token <i> INT
@@ -66,24 +68,24 @@ static int pcnt;
 %token IF THEN ELSE ELIF FI FOR UNTIL STEP DO DONE REPEAT STOP RETURN
 
 %type <n> program module dSEQOPT dSEQ declaration
-%type <n> variable vDimOPT vInitOPT literal literalSEQ literals integerSEQ
+%type <n> variable vDimOPT vInitOPT literal literalSEQ integerSEQ
 %type <n> function fParamsOPT fParams fBody body vSEQ
 %type <n> iBlock iSEQOPT iSEQ instruction iElifSEQ iElif iElse iSugar iLast
 %type <n> rValueOPT lValue rValue rArgs
 %type <n> qualifier constant type fType
 
-%token NIL DECL DECLS LITERALS INTS
+%token NIL DECL DECLS INTS LITERALS LITSEQ LITSTART
 %token VAR V_LBL V_RDONLY V_TYPE V_ID V_DIM INIT FUNC F_HEAD F_LBL F_ID PARAMS F_BODY
 %token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
-%token BODY VARS FETCH LOCAL ADDR LOAD CALL PRIORITY ERROR
+%token BODY VARS FETCH LOCAL ADDR LOAD CALL ERROR
 %%
 
-file        : { IDpush(); } program { IDpop(); if (!errors) { printNode($2, 0, yynames); } freeNode($2); }
-            | { IDpush(); } module  { IDpop(); if (!errors) { printNode($2, 0, yynames); } freeNode($2); }
+file        : { IDpush(); } program { IDpop(); evaluate($2); freeNode($2); }
+            | { IDpush(); } module  { IDpop(); evaluate($2); freeNode($2); }
             ;
 
 program     : PROGRAM dSEQOPT START { IDpush(); inMain = 1; }
-              body { inMain = 0; doMain(-pos, $5); pcnt = pos = 0; IDpop(); }
+              body { inMain = 0; doMain(-pos, $5); poscnt = pos = 0; IDpop(); }
               END { $$ = binNode(PROGRAM, $2, $5); }
             ;
 
@@ -114,10 +116,10 @@ constant    :                       { $$ = nilNodeT(NIL, 0); }
             | CONST                 { $$ = nilNodeT(CONST, _CONST); }
             ;
 
-variable    : type ID vDimOPT       { $$ = binNodeT(V_TYPE, $1, binNode(V_ID, strNode(ID, $2), $3), INFO($1));
-                                      if (OP_LABEL($1) != ARRAY && OP_LABEL($3) != NIL)
-                                      yyerror("[Invalid Variable Type to specify its dimension]"); }
-            ;
+variable    : type ID vDimOPT       {
+    $$ = binNodeT(V_TYPE, $1, binNode(V_ID, strNode(ID, $2), $3), INFO($1));
+    if (OP_LABEL($1) != ARRAY && OP_LABEL($3) != NIL) yyerror("[Invalid Variable Type to specify its dimension]");
+}           ;
 
 type        : ARRAY                 { $$ = nilNodeT(ARRAY, _ARRAY); }
             | NUMBER                { $$ = nilNodeT(NUMBER, _INT); }
@@ -130,7 +132,8 @@ vDimOPT     :                       { $$ = nilNode(NIL); }
             ;
 
 vInitOPT    :                               { $$ = nilNodeT(NIL, _VOID); alen = 0; }
-            | ASSIGN literals               { $$ = $2; }
+            | ASSIGN literal                { $$ = $2; alen = 1; }
+            | ASSIGN literalSEQ literal     { $$ = binNodeT(LITERALS, $2, $3, _STR); }
             | ASSIGN integerSEQ ',' INT     { $$ = binNodeT(INTS, $2, intNode(INT, $4), _ARRAY); alen++; }
             ;
 
@@ -143,32 +146,30 @@ literalSEQ  : literal               { $$ = binNodeT(LITERALS, nilNode(NIL), $1, 
             | literalSEQ literal    { $$ = binNodeT(LITERALS, $1, $2, _STR); }
             ;
 
-literals    : literal               { $$ = $1; alen = 1; }
-            | literalSEQ literal    { $$ = binNodeT(LITERALS, $1, $2, _STR); }
-            ;
-
 integerSEQ  : INT                   { $$ = binNodeT(INTS, nilNode(NIL), intNode(INT, $1), _ARRAY); alen = 1; }
             | integerSEQ ',' INT    { $$ = binNodeT(INTS, $1, intNode(INT, $3), _ARRAY); alen++; }
             ;
 
 function    : FUNCTION qualifier fType ID   { retType = INFO($3); IDpush(); }
               fParamsOPT                    { funcPut(INFO($2) + retType + _FUNCTION, $4, $6); }
-              fBody                         { retType = _INT; $$ = binNode(FUNC, binNode(F_HEAD, binNode(F_LBL, $2, binNode(F_ID, $3, strNode(ID, $4))), $6), $8);
-                                              if (OP_LABEL($2) == FORWARD && OP_LABEL($8) != DONE) yyerror("[Forward Function must not have a Body]");
-                                              else if (OP_LABEL($2) != FORWARD && OP_LABEL($8) == DONE) yyerror("[Function with empty Body must be Forward]");
-                                              else doFunc(INFO($2) + INFO($3), $4, -pos, $8); pcnt = pos = 0; IDpop(); }
-            ;
+              fBody                         {
+    $$ = binNode(FUNC, binNode(F_HEAD, binNode(F_LBL, $2, binNode(F_ID, $3, strNode(ID, $4))), $6), $8);
+    if (OP_LABEL($2) == FORWARD && OP_LABEL($8) != DONE) yyerror("[Forward Function must not have a Body]");
+    else if (OP_LABEL($2) != FORWARD && OP_LABEL($8) == DONE) yyerror("[Function with empty Body must be Forward]");
+    else doFunc(INFO($2) + INFO($3), $4, -pos, $6, $8);
+    poscnt = pos = 0; retType = _INT; IDpop();
+}           ;
 
 fType       : type                  { $$ = $1; }
             | VOID                  { $$ = nilNodeT(VOID, _VOID); }
             ;
 
 fParamsOPT  :                       { $$ = nilNode(NIL); }
-            | fParams               { $$ = $1; }
+            | fParams               { $$ = uniNode(PARAMS, $1); }
             ;
 
-fParams     : variable              { pos = 8; varPut($1); pos += typBytes(INFO($1)); $$ = binNode(PARAMS, $1, nilNode(NIL)); }
-            | fParams ';' variable  { varPut($3); pos += typBytes(INFO($3)); $$ = binNode(PARAMS, $3, $1); }
+fParams     : variable              { pos = 8; varPut($1); pos += typeBytes(INFO($1)); $$ = binNode(VARS, $1, nilNode(NIL)); }
+            | fParams ';' variable  { varPut($3); pos += typeBytes(INFO($3)); $$ = binNode(VARS, $3, $1); }
             ;
 
 fBody       : DONE                  { $$ = nilNode(DONE); }
@@ -179,8 +180,8 @@ body        : vSEQ iSEQOPT iLast    { $$ = binNode(BODY, $1, binNode(BLOCK, $2, 
             ;
 
 vSEQ        :                       { pos = 0; $$ = nilNodeT(NIL, pos); }
-            | vSEQ variable ';'     { pos -= typBytes(INFO($2)); varPut($2); $$ = binNode(VARS, $1, $2); }
-            | vSEQ error ';'        { $$ = binNode(VARS, $1, nilNode(ERROR)); }
+            | vSEQ variable ';'     { pos -= typeBytes(INFO($2)); varPut($2); $$ = binNode(VARS, $2, $1); }
+            | vSEQ error ';'        { $$ = binNode(VARS, nilNode(ERROR), $1); }
             ;
 
 iBlock      : { blck++; } iSEQOPT iLast { blck--; $$ = binNode(BLOCK, $2, $3); }
@@ -197,19 +198,21 @@ iSEQ        : instruction           { $$ = binNode(INSTRS, nilNode(NIL), $1); }
             | iSEQ error DONE       { $$ = binNode(INSTRS, $1, nilNode(ERROR)); }
             ;
 
-instruction : rValue iSugar                             { $$ = binNode(EXPR, $1, $2);
-                                                          if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]"); }
-            | lValue '#' rValue ';'                     { $$ = binNode('#', $1, $3);
-                                                          if (!isLV($1)) yyerror("['#' Left-value must not be a Function]");
-                                                          else if (isConst(INFO($1))) yyerror("['#' Left-value must not be a Constant]");
-                                                          else if (isInt($1)) yyerror("['#' Left-value Type must be a Pointer]");
-                                                          else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]"); }
-            | IF rValue                                 { if (!isInt($2)) yyerror("['if' Condition Type must be an Integer]"); }
+instruction : IF rValue                                 { if (!isInt($2)) yyerror("['if' Condition Type must be an Integer]"); }
               THEN iBlock iElifSEQ iElse FI             { $$ = binNode(CONDITION, binNode(IF, $2, uniNode(THEN, $5)), binNode(ELSES, $6, $7)); }
             | FOR rValue UNTIL rValue                   { if (!isInt($4)) yyerror("['until' Condition Type must be an Integer]"); }
               STEP rValue
               DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(FOR, $2, binNode(STEP, binNode(DO, uniNode(UNTIL, $4), $10), $7)); }
-            ;
+            | rValue iSugar         {
+    $$ = binNode(EXPR, $1, $2);
+    if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]");
+}           | lValue '#' rValue ';' {
+    $$ = binNode('#', $3, $1);
+    if (!isLV($1)) yyerror("['#' Left-value must not be a Function]");
+    else if (isConst(INFO($1))) yyerror("['#' Left-value must not be a Constant]");
+    else if (isInt($1)) yyerror("['#' Left-value Type must be a Pointer]");
+    else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]");
+}           ;
 
 iElifSEQ    :                           { $$ = nilNodeT(NIL, -1); }
             | iElifSEQ iElif            { $$ = binNodeT(ELIFS, $1, $2, INFO($1) + 1); }
@@ -227,34 +230,41 @@ iSugar      : ';'                       { $$ = nilNode(';'); }
             | '!'                       { $$ = nilNode('!'); }
             ;
 
-iLast       :                           { $$ = nilNode(NIL); }
-            | REPEAT                    { $$ = nilNode(REPEAT);
-                                          if (!cicl) yyerror("[Repeat must appear inside of a cicle]"); }
-            | STOP                      { $$ = nilNode(STOP);
-                                          if (!cicl) yyerror("[Stop must appear inside of a cicle]"); }
-            | RETURN rValueOPT          { $$ = uniNode(RETURN, $2);
-                                          if (!blck && (inMain || retType == _VOID)) yyerror("[Return must appear inside of a sub-block]");
-                                          else if (!SAME_TYPE(retType, $2)) yyerror("[Funciton Type != Return Type]"); }
+iLast       :                   { $$ = nilNode(NIL); }
+            | REPEAT            {
+    $$ = nilNode(REPEAT);
+    if (!cicl) yyerror("[Repeat must appear inside of a cicle]");
+}           | STOP              {
+    $$ = nilNode(STOP);
+    if (!cicl) yyerror("[Stop must appear inside of a cicle]");
+}           | RETURN rValueOPT  {
+    $$ = uniNode(RETURN, $2);
+    if (!blck && inMain) yyerror("[Return must appear inside of a sub-block]");
+    else if (retType == _VOID && OP_LABEL($2) != NIL) yyerror("[Return Expression not allowed in Void Functions]");
+    else if (!SAME_TYPE(retType, $2)) yyerror("[Funciton Type != Return Type]");
+}           ;
+
+rValueOPT   :                   { $$ = nilNodeT(NIL, _VOID); }
+            | rValue            { $$ = $1; }
             ;
 
-rValueOPT   :                           { $$ = nilNodeT(NIL, _VOID); }
-            | rValue                    { $$ = $1; }
-            ;
-
-lValue      : ID                        { $$ = findID($1, NULL);
-                                          if (isFunc(INFO($$))) { freeNode($$); $$ = callNode($1, nilNode(NIL)); } }
-            | ID '[' rValue ']'         { $$ = findID($1, NULL);
-                                          if (isFunc(INFO($$))) { freeNode($$); $$ = idxNode(callNode($1, nilNode(NIL)), $3); }
-                                          else $$ = idxNode($$, $3); }
-            ;
+lValue      : ID                {
+    $$ = findID($1, NULL);
+    if (isFunc(INFO($$))) { freeNode($$); $$ = callNode($1, nilNode(NIL)); }
+}           | ID '[' rValue ']' {
+    $$ = findID($1, NULL);
+    if (isFunc(INFO($$))) { freeNode($$); $$ = idxNode(callNode($1, nilNode(NIL)), $3); }
+    else $$ = idxNode($$, $3);
+}           ;
 
 rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, NAKED_TYPE(INFO($1)));
                                           else $$ = $1; }
-            | literals                  { $$ = $1; }
+            | literal                   { $$ = $1; }
+            | literalSEQ literal        { $$ = binNodeT(LITSEQ, nilNode(LITSTART), binNodeT(LITERALS, $1, $2, _STR), _STR); }
             | ID '(' rArgs ')'          { $$ = callNode($1, $3); }
-            | '(' rValue ')'            { $$ = uniNodeT(PRIORITY, $2, INFO($2)); }
+            | '(' rValue ')'            { $$ = $2; }
             | '?'                       { $$ = nilNodeT('?', _INT); }
-            | '&' lValue %prec ADDR     { $$ = uniNode(ADDR, $2);
+            | '&' lValue %prec PTR      { $$ = uniNode(PTR, $2);
                                           if (!isLV($2)) yyerror("[Functions can not be located '&']");
                                           else if (!isInt($2)) yyerror("[Only Integers can be located '&']");
                                           else INFO($$) = _ARRAY; }
@@ -275,8 +285,9 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
                                           else yyerror("[Invalid Types to '%%']"); }
             | rValue '+' rValue         { $$ = binNode('+', $1, $3);
                                           if (isInt($1) && isInt($3)) INFO($$) = _INT;
-                                          else if (isInt($1) && isArray($3) ||
-                                            isArray($1) && isInt($3)) INFO($$) = _ARRAY;
+                                          else if (isArray($1) && isInt($3)) INFO($$) = _ARRAY;
+                                          else if (isInt($1) && isArray($3)) {
+                                            free($$); $$ = binNodeT('+', $3, $1, _ARRAY); }
                                           else yyerror("[Invalid Types to '+']"); }
             | rValue '-' rValue         { $$ = binNode('-', $1, $3);
                                           if (isInt($1) && isInt($3) ||
@@ -356,8 +367,8 @@ static void varPut(Node *var) {
     int typ = IDsearch(id, (void **)IDtest, 0, 1);
 
     if (typ == -1) {
-        if (pos) pbuf[pcnt] = pos;
-        IDadd(INFO(var), id, pos ? pbuf + pcnt++ : 0);
+        if (pos) posbuf[poscnt] = pos;
+        IDadd(INFO(var), id, pos ? posbuf + poscnt++ : 0);
     } else {
         if (isFunc(typ)) {
             sprintf(buf, "[Function named '%s' already declared]", id);
@@ -369,8 +380,8 @@ static void varPut(Node *var) {
             sprintf(buf, "[Variable '%s' already declared with a different Type]", id);
             yyerror(buf);
         } else {
-            if (pos) pbuf[pcnt] = pos;
-            IDreplace(INFO(var), id, pos ? pbuf + pcnt++ : 0);
+            if (pos) posbuf[poscnt] = pos;
+            IDreplace(INFO(var), id, pos ? posbuf + poscnt++ : 0);
         }
     }
 }
@@ -389,10 +400,7 @@ static Node *varNode(Node *qual, Node *cons, Node *var, Node *value) {
             sprintf(buf, "[Invalid Variable '%s' initialization Type]", id);
             yyerror(buf);
         } else if (isArray(var)) {
-            if (OP_LABEL(sz) == NIL) {
-                sprintf(buf, "[Array '%s' dimension must be specified when initialized]", id);
-                yyerror(buf);
-            } else if (sz->value.i < alen) {
+            if (OP_LABEL(sz) != NIL && sz->value.i < alen) {
                 sprintf(buf, "[Invalid Array '%s' dimension: %d < %d]", id, sz->value.i, alen);
                 yyerror(buf);
             }
@@ -434,6 +442,7 @@ static void funcPut(int typF, char *id, Node *params) {
     Node **p = (Node **)malloc(sizeof(Node *));
     if (p == NULL) { yyerror("Out of Memory"); exit(2); }
     int typ = IDsearch(id, (void **)p, 1, 1);
+    if (OP_LABEL(params) != NIL) params = LEFT_CHILD(params);
 
     if (typ == -1) {
         IDinsert(IDlevel() - 1, typF, id, params);
@@ -507,8 +516,15 @@ static Node *callNode(char *id, Node *args) {
 }
 
 char **yynames =
-#if YYDEBUG > 0
-    (char **)yyname;
+#ifdef YYDEBUG
+    (char**)yyname;
 #else
-    NULL;
+    0;
 #endif
+
+static void evaluate(Node *p) {
+    if (!errors && trace) {
+        printNode(p, stdout, yynames);
+        if (!yyselres) printf("selection successful\n");
+    }
+}
