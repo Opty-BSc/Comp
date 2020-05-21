@@ -206,27 +206,25 @@ rValue      : RINDEX(call, rValue)      1 { fprintf(yyout, pfIMM pfMUL pfADD pfL
 rValue      : ASSIGN(rCopy, lStore)
 rCopy       : rValue                    1 { fprintf(yyout, pfCOPY); }
 
-%! Possible Ptr Arithmetic Start
-%! Var += Literal
+%! Possible Ptr Arithmetic
+%! Var +:= Literal
 rValue      : ASSIGN(ADD(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfCOPY pfINCR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
-%! Var -= Literal
+
+%! Var -:= Literal
 rValue      : ASSIGN(SUB(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfCOPY pfDECR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
-%! Possible Ptr Arithmetic End
 
 %! No Ptr Arithmetic (Yacc ensures Var != Array on '+' Right Side)
 %! Var := Literal + Var
 rValue      : ASSIGN(ADD(aT, LOAD(aV)), lValue) eqVarR { fprintf(yyout, pfCOPY pfINCR pfLOAD, LEFT_CHILD(LEFT_CHILD(p))->value.i); }
-%! Var := Literal - Var
-%! pfDECR Impracticable
 
-%! Indexed Var += Literal
+%! Indexed Var +:= Literal
 rValue      : ASSIGN(ADD(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfCOPY pfINCR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
-%! Indexed Var -= Literal
+
+%! Indexed Var -:= Literal
 rValue      : ASSIGN(SUB(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfCOPY pfDECR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+
 %! Indexed Var := Literal + Indexed Var
 rValue      : ASSIGN(ADD(aT, LOAD(aI)), lValue) eqVarIR { fprintf(yyout, pfCOPY pfINCR, LEFT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
-%! Indexed Var := Literal - Indexed Var
-%! pfDECR Impracticable
 
 aV: ADDR(ID)
 aV: LOCAL(ID)
@@ -323,7 +321,7 @@ void decVar(int typ, char *id, Node *sz, Node *val) {
             return;
         }
     /* Initialized */
-    } else if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfFUNC);
+    } else if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfOBJ);
 
     if (isConst(typ)) fprintf(yyout, pfRODATA pfALIGN pfLABEL, id);
     else fprintf(yyout, pfDATA pfALIGN pfLABEL, id);
@@ -421,7 +419,7 @@ static void subArith(Node *p) {
 
 static int eqVar(Node *a, Node *b) {
 
-    return OP_LABEL(a) != LINDEX && OP_LABEL(a) == OP_LABEL(b) &&
+    return (OP_LABEL(a) == ADDR || OP_LABEL(a) == LOCAL) && OP_LABEL(a) == OP_LABEL(b) &&
     !strcmp(LEFT_CHILD(a)->value.s, LEFT_CHILD(b)->value.s) ? 1 : 0X7FFF;
 }
 
