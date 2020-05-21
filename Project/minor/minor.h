@@ -30,6 +30,7 @@
 #define PTR_SZ pfWORD
 #define typeBytes(a) (NAKED_TYPE(a) == 1 ? INT_SZ : PTR_SZ)
 #define eleBytes(a) (NAKED_TYPE(a) == 2 ? CH_SZ : INT_SZ)
+#define assArithBytes(a) (NAKED_TYPE(a) == 0 ? INT_SZ : 1)
 #define UC(c) ((unsigned char)c)
 
 #endif /* _MINOR_H_ */

@@ -24,6 +24,7 @@ static int ciclbl[10][3];
 static int ciccnt = -1;
 static int condlbl[10][2];
 static int condcnt = -1;
+static int jmp[2];
 /* Function Declarations */
 static char *mklbl(int lb);
 static char *mkFid(char *s);
@@ -40,6 +41,12 @@ static void doCall(int ext, char *id, int nB);
 static void preCmp(Node *p);
 static void addArith(Node *p);
 static void subArith(Node *p);
+static int eqVar(Node *a, Node *b);
+static int eqVarL(Node *p);
+static int eqVarR(Node *p);
+static int eqVarI(Node *a, Node *b);
+static int eqVarIL(Node *p);
+static int eqVarIR(Node *p);
 static void yytrace(NODEPTR_TYPE p, int eruleno, int cost, int bcost);
 %}
 %include "y.tab.h"
@@ -91,12 +98,12 @@ instruction : EXPR(rValue, ECHO)    1 { doCall(1, isStr(LEFT_CHILD(p)) ? "prints
 
 %! Alloc Start
 instruction : ALLOC(rValue, ADDR(ID))   1 {
-    fprintf(yyout, pfIMM pfMUL pfALLOC pfSP, eleBytes(INFO(RIGHT_CHILD(p))));
-    fprintf(yyout, pfADDRA, LEFT_CHILD(RIGHT_CHILD(p))->value.s);
+    if ((PLACE(p) = eleBytes(INFO(RIGHT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)PLACE(p));
+    fprintf(yyout, pfALLOC pfSP pfADDRA, LEFT_CHILD(RIGHT_CHILD(p))->value.s);
 }
 instruction : ALLOC(rValue, LOCAL(ID))  1 {
-    fprintf(yyout, pfIMM pfMUL pfALLOC pfSP, eleBytes(INFO(RIGHT_CHILD(p))));
-    fprintf(yyout, pfLOCA, pos(LEFT_CHILD(RIGHT_CHILD(p))->value.s));
+    if ((PLACE(p) = eleBytes(INFO(RIGHT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)PLACE(p));
+    fprintf(yyout, pfALLOC pfSP pfLOCA, pos(LEFT_CHILD(RIGHT_CHILD(p))->value.s));
 }
 %! Alloc End
 
@@ -112,36 +119,46 @@ iFor        : rValue                                1 {
     ciclbl[ciccnt][1] = ++lbl;
     ciclbl[ciccnt][2] = ++lbl;
 }
-iForBody    : DO(iForCond, iBlock)  1 { fprintf(yyout, pfLABEL, mklbl(ciclbl[ciccnt][1])); }
-iForCond    : UNTIL(rValue)         1 { fprintf(yyout, pfJNZ, mklbl(ciclbl[ciccnt][2])); }
-iLast       : REPEAT                1 { fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][1])); }
-iLast       : STOP                  1 { fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][2])); }
+iForBody    : DO(UNTIL(iForCond, rJump), iBlock)    1 { fprintf(yyout, pfLABEL, mklbl(ciclbl[ciccnt][1])); }
+iForCond    : START     1 { jmp[0] = 1; jmp[1] = ciclbl[ciccnt][2]; }
+iLast       : REPEAT    1 { fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][1])); }
+iLast       : STOP      1 { fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][2])); }
 %! For End
 
 %! Conditions Start
-instruction : CONDITION(iIf, ELSES(iElifS, iElse))  1 {
+instruction : CONDITION(iIf, ELSES(iElifS, iElse))      1 {
     fprintf(yyout, pfLABEL, mklbl(condlbl[condcnt--][1]));
 }
-iIf         : IF(iIfCond, THEN(iBlock))             1 {
+iIf         : IF(JMP(iIfCond, rJump), THEN(iBlock))     1 {
     fprintf(yyout, pfJMP, mklbl(condlbl[condcnt][1] = ++lbl));
     fprintf(yyout, pfLABEL, mklbl(condlbl[condcnt][0]));
 }
-iElif       : ELIF(iElifCond, THEN(iBlock))         1 {
+iElif       : ELIF(JMP(iElifCond, rJump), THEN(iBlock)) 1 {
     fprintf(yyout, pfJMP, mklbl(condlbl[condcnt][1]));
     fprintf(yyout, pfLABEL, mklbl(condlbl[condcnt][0]));
 }
-iIfCond     : rValue    1 { fprintf(yyout, pfJZ, mklbl(condlbl[++condcnt][0] = ++lbl)); }
-iElifCond   : rValue    1 { fprintf(yyout, pfJZ, mklbl(condlbl[condcnt][0] = ++lbl)); }
+iIfCond     : START     1 { jmp[0] = 0; jmp[1] = condlbl[++condcnt][0] = ++lbl; }
+iElifCond   : START     1 { jmp[0] = 0; jmp[1] = condlbl[condcnt][0] = ++lbl; }
 iElifS      : ELIFS(iElifS, iElif)
 iElifS      : NIL
 iElse       : ELSE(iBlock)
 iElse       : NIL
 %! Conditions End
 
+%! Conditional JMPs Start
+rJump       : LT(rValue, rValue)        1 { preCmp(p); fprintf(yyout, jmp[0] ? pfJLT : pfJGE, mklbl(jmp[1])); }
+rJump       : GT(rValue, rValue)        1 { preCmp(p); fprintf(yyout, jmp[0] ? pfJGT : pfJLE, mklbl(jmp[1])); }
+rJump       : LE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, jmp[0] ? pfJLE : pfJGT, mklbl(jmp[1])); }
+rJump       : GE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, jmp[0] ? pfJGE : pfJLT, mklbl(jmp[1])); }
+rJump       : NE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, jmp[0] ? pfJNE : pfJEQ, mklbl(jmp[1])); }
+rJump       : EQ(rValue, rValue)        1 { preCmp(p); fprintf(yyout, jmp[0] ? pfJEQ : pfJNE, mklbl(jmp[1])); }
+rJump       : rValue                    1 { fprintf(yyout, jmp[0] ? pfJNZ : pfJZ, mklbl(jmp[1])); }
+%! Conditional JMPs End
+
 %! LValue Start
 lValue      : ADDR(ID)                  1 { fprintf(yyout, pfADDR, LEFT_CHILD(p)->value.s); }
 lValue      : LOCAL(ID)                 1 { fprintf(yyout, pfLOCAL, pos(LEFT_CHILD(p)->value.s)); }
-lValue      : LINDEX(lLoad, rValue)     1 { fprintf(yyout, pfIMM pfMUL pfADD, (int)(PLACE(p) = eleBytes(INFO(LEFT_CHILD(p))))); }
+lValue      : LINDEX(lLoad, rValue)     1 { if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p))); fprintf(yyout, pfADD); }
 lLoad       : lValue                    1 { fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD); }
 lLoad       : ADDR(ID)                  1 { fprintf(yyout, pfADDRV, LEFT_CHILD(p)->value.s); }
 lLoad       : LOCAL(ID)                 1 { fprintf(yyout, pfLOCV, pos(LEFT_CHILD(p)->value.s)); }
@@ -158,17 +175,17 @@ argS        : NIL                       1 { PLACE(p) = 0; }
 
 rValue      : INT                       1 { fprintf(yyout, pfIMM, p->value.i); }
 rValue      : CHAR                      1 { fprintf(yyout, pfIMM, p->value.i); }
-rValue      : STR                       1 { fprintf(yyout, pfDATA pfALIGN pfLABEL, mklbl(++lbl)); Str(p->value.s); fprintf(yyout, pfTEXT pfADDR, mklbl(lbl)); }
+rValue      : STR                       1 { fprintf(yyout, pfRODATA pfALIGN pfLABEL, mklbl(++lbl)); Str(p->value.s); fprintf(yyout, pfTEXT pfADDR, mklbl(lbl)); }
 rValue      : LITSEQ(litStart, litS)    1 { fprintf(yyout, pfCHAR pfTEXT pfADDR, 0, mklbl(lbl)); }
-litStart    : LITSTART                  1 { fprintf(yyout, pfDATA pfALIGN pfLABEL, mklbl(++lbl)); }
+litStart    : START                     1 { fprintf(yyout, pfRODATA pfALIGN pfLABEL, mklbl(++lbl)); }
 rValue      : INPUT                     1 { doCall(1, "readi", 0); }
 rValue      : UMINUS(rValue)            1 { fprintf(yyout, pfNEG); }
-rValue      : POW(rValue, rValue)       1 { doCall(1, "poweri", 8); }
+rValue      : ADD(rValue, rValue)       1 { addArith(p); }
+rValue      : SUB(rValue, rValue)       1 { subArith(p); }
 rValue      : MUL(rValue, rValue)       1 { fprintf(yyout, pfMUL); }
 rValue      : DIV(rValue, rValue)       1 { fprintf(yyout, pfDIV); }
 rValue      : MOD(rValue, rValue)       1 { fprintf(yyout, pfMOD); }
-rValue      : ADD(rValue, rValue)       1 { addArith(p); }
-rValue      : SUB(rValue, rValue)       1 { subArith(p); }
+rValue      : POW(rValue, rValue)       1 { doCall(1, "poweri", 8); }
 rValue      : LT(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfLT); }
 rValue      : GT(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfGT); }
 rValue      : LE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfLE); }
@@ -176,8 +193,6 @@ rValue      : GE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfGE); }
 rValue      : NE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfNE); }
 rValue      : EQ(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfEQ); }
 rValue      : NOT(rValue)               1 { fprintf(yyout, pfIMM pfEQ, 0); }
-rValue      : ASSIGN(rCopy, lStore)
-rCopy       : rValue                    1 { fprintf(yyout, pfCOPY); }
 rValue      : AND(rAnd, rValue)         1 { fprintf(yyout, pfLABEL, mklbl(PLACE(LEFT_CHILD(p)))); }
 rAnd        : rValue                    1 { fprintf(yyout, pfCOPY pfJZ pfTRASH, mklbl(PLACE(p) = ++lbl), typeBytes(INFO(p))); }
 rValue      : OR(rOr, rValue)           1 { fprintf(yyout, pfLABEL, mklbl(PLACE(LEFT_CHILD(p)))); }
@@ -186,6 +201,39 @@ rValue      : PTR(lValue)
 rValue      : LOAD(lLoad)
 rValue      : call
 rValue      : RINDEX(call, rValue)      1 { fprintf(yyout, pfIMM pfMUL pfADD pfLOAD, eleBytes(INFO(LEFT_CHILD(p)))); }
+
+%! Assignment Start
+rValue      : ASSIGN(rCopy, lStore)
+rCopy       : rValue                    1 { fprintf(yyout, pfCOPY); }
+
+%! Possible Ptr Arithmetic Start
+%! Var += Literal
+rValue      : ASSIGN(ADD(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfCOPY pfINCR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
+%! Var -= Literal
+rValue      : ASSIGN(SUB(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfCOPY pfDECR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
+%! Possible Ptr Arithmetic End
+
+%! No Ptr Arithmetic (Yacc ensures Var != Array on '+' Right Side)
+%! Var := Literal + Var
+rValue      : ASSIGN(ADD(aT, LOAD(aV)), lValue) eqVarR { fprintf(yyout, pfCOPY pfINCR pfLOAD, LEFT_CHILD(LEFT_CHILD(p))->value.i); }
+%! Var := Literal - Var
+%! pfDECR Impracticable
+
+%! Indexed Var += Literal
+rValue      : ASSIGN(ADD(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfCOPY pfINCR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+%! Indexed Var -= Literal
+rValue      : ASSIGN(SUB(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfCOPY pfDECR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+%! Indexed Var := Literal + Indexed Var
+rValue      : ASSIGN(ADD(aT, LOAD(aI)), lValue) eqVarIR { fprintf(yyout, pfCOPY pfINCR, LEFT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+%! Indexed Var := Literal - Indexed Var
+%! pfDECR Impracticable
+
+aV: ADDR(ID)
+aV: LOCAL(ID)
+aI: LINDEX(aV, aT)
+aT: INT
+aT: CHAR
+%! Assignment End
 %%
 
 static char *mklbl(int lb) {
@@ -369,6 +417,35 @@ static void subArith(Node *p) {
         if (isInt(RIGHT_CHILD(p))) fprintf(yyout, pfIMM pfMUL pfSUB, INT_SZ);
         else fprintf(yyout, pfSWAP pfIMM pfMUL pfSWAP pfSUB, INT_SZ);
     }
+}
+
+static int eqVar(Node *a, Node *b) {
+
+    return OP_LABEL(a) != LINDEX && OP_LABEL(a) == OP_LABEL(b) &&
+    !strcmp(LEFT_CHILD(a)->value.s, LEFT_CHILD(b)->value.s) ? 1 : 0X7FFF;
+}
+
+static int eqVarI(Node *a, Node *b) {
+
+    return OP_LABEL(a) == LINDEX && OP_LABEL(a) == OP_LABEL(b) &&
+    RIGHT_CHILD(a)->value.i == RIGHT_CHILD(b)->value.i ?
+    eqVar(LEFT_CHILD(a), LEFT_CHILD(b)) : 0X7FFF;
+}
+
+static int eqVarL(Node *p) {
+    return eqVar(LEFT_CHILD(LEFT_CHILD(LEFT_CHILD(p))), RIGHT_CHILD(p));
+}
+
+static int eqVarR(Node *p) {
+    return eqVar(LEFT_CHILD(RIGHT_CHILD(LEFT_CHILD(p))), RIGHT_CHILD(p));
+}
+
+static int eqVarIL(Node *p) {
+    return eqVarI(LEFT_CHILD(LEFT_CHILD(LEFT_CHILD(p))), RIGHT_CHILD(p));
+}
+
+static int eqVarIR(Node *p) {
+    return eqVarI(LEFT_CHILD(RIGHT_CHILD(LEFT_CHILD(p))), RIGHT_CHILD(p));
 }
 
 #ifndef NOTRACE

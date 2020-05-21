@@ -74,7 +74,7 @@ static int poscnt;
 %type <n> rValueOPT lValue rValue rArgs
 %type <n> qualifier constant type fType
 
-%token NIL DECL DECLS INTS LITERALS LITSEQ LITSTART
+%token NIL DECL DECLS INTS LITERALS LITSEQ JMP
 %token VAR V_LBL V_RDONLY V_TYPE V_ID V_DIM INIT FUNC F_HEAD F_LBL F_ID PARAMS F_BODY
 %token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
 %token BODY VARS FETCH LOCAL ADDR LOAD CALL ERROR
@@ -199,10 +199,10 @@ iSEQ        : instruction           { $$ = binNode(INSTRS, nilNode(NIL), $1); }
             ;
 
 instruction : IF rValue                                 { if (!isInt($2)) yyerror("['if' Condition Type must be an Integer]"); }
-              THEN iBlock iElifSEQ iElse FI             { $$ = binNode(CONDITION, binNode(IF, $2, uniNode(THEN, $5)), binNode(ELSES, $6, $7)); }
+              THEN iBlock iElifSEQ iElse FI             { $$ = binNode(CONDITION, binNode(IF, binNode(JMP, nilNode(START), $2), uniNode(THEN, $5)), binNode(ELSES, $6, $7)); }
             | FOR rValue UNTIL rValue                   { if (!isInt($4)) yyerror("['until' Condition Type must be an Integer]"); }
               STEP rValue
-              DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(FOR, $2, binNode(STEP, binNode(DO, uniNode(UNTIL, $4), $10), $7)); }
+              DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(FOR, $2, binNode(STEP, binNode(DO, binNode(UNTIL, nilNode(START), $4), $10), $7)); }
             | rValue iSugar         {
     $$ = binNode(EXPR, $1, $2);
     if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]");
@@ -214,20 +214,20 @@ instruction : IF rValue                                 { if (!isInt($2)) yyerro
     else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]");
 }           ;
 
-iElifSEQ    :                           { $$ = nilNodeT(NIL, -1); }
-            | iElifSEQ iElif            { $$ = binNodeT(ELIFS, $1, $2, INFO($1) + 1); }
+iElifSEQ    :                   { $$ = nilNodeT(NIL, -1); }
+            | iElifSEQ iElif    { $$ = binNodeT(ELIFS, $1, $2, INFO($1) + 1); }
             ;
 
-iElif       : ELIF rValue               { if (!isInt($2)) yyerror("['elif' Condition Type must be an Integer]"); }
-              THEN iBlock               { $$ = binNode(ELIF, $2, uniNode(THEN, $5)); }
+iElif       : ELIF rValue       { if (!isInt($2)) yyerror("['elif' Condition Type must be an Integer]"); }
+              THEN iBlock       { $$ = binNode(ELIF, binNode(JMP, nilNode(START), $2), uniNode(THEN, $5)); }
             ;
 
-iElse       :                           { $$ = nilNode(NIL); }
-            | ELSE iBlock               { $$ = uniNode(ELSE, $2); }
+iElse       :                   { $$ = nilNode(NIL); }
+            | ELSE iBlock       { $$ = uniNode(ELSE, $2); }
             ;
 
-iSugar      : ';'                       { $$ = nilNode(';'); }
-            | '!'                       { $$ = nilNode('!'); }
+iSugar      : ';'               { $$ = nilNode(';'); }
+            | '!'               { $$ = nilNode('!'); }
             ;
 
 iLast       :                   { $$ = nilNode(NIL); }
@@ -260,7 +260,7 @@ lValue      : ID                {
 rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, NAKED_TYPE(INFO($1)));
                                           else $$ = $1; }
             | literal                   { $$ = $1; }
-            | literalSEQ literal        { $$ = binNodeT(LITSEQ, nilNode(LITSTART), binNodeT(LITERALS, $1, $2, _STR), _STR); }
+            | literalSEQ literal        { $$ = binNodeT(LITSEQ, nilNode(START), binNodeT(LITERALS, $1, $2, _STR), _STR); }
             | ID '(' rArgs ')'          { $$ = callNode($1, $3); }
             | '(' rValue ')'            { $$ = $2; }
             | '?'                       { $$ = nilNodeT('?', _INT); }
