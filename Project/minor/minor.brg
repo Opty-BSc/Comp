@@ -60,13 +60,15 @@ s: litS
 s: intS
 
 %! Local Vars Start
-varS        : VARS(varS, V_TYPE(ARRAY, V_ID(ID, V_DIM)))    1 {
-    Node *id = RIGHT_CHILD(RIGHT_CHILD(p));
-    fprintf(yyout, pfIMM pfALLOC pfSP, INT_SZ * RIGHT_CHILD(id)->value.i);
-    fprintf(yyout, pfLOCA, pos(LEFT_CHILD(id)->value.s));
-}
-varS        : VARS(varS, V_TYPE(type, V_ID(ID, NIL)))
+varS        : VARS(varS, localVar)
 varS        : NIL
+localVar    : V_TYPE(ARRAY, V_ID(ID, V_DIM))    1 {
+    /* Array [sz] */
+    fprintf(yyout, pfIMM pfALLOC pfSP, INT_SZ * RIGHT_CHILD(RIGHT_CHILD(p))->value.i);
+    fprintf(yyout, pfLOCA, pos(LEFT_CHILD(RIGHT_CHILD(p))->value.s));
+}
+localVar    : V_TYPE(type, V_ID(ID, NIL))
+localVar    : ERROR
 type        : NUMBER
 type        : STRING
 type        : ARRAY
@@ -92,6 +94,7 @@ iLast       : RETURN(NIL)           1 { fprintf(yyout, pfLEAVE pfRET); }
 iLast       : RETURN(rValue)        1 { fprintf(yyout, pfPOP pfLEAVE pfRET); }
 iLast       : NIL
 
+instruction : ERROR
 instruction : EXPR(rValue, TRASH)   1 { fprintf(yyout, pfTRASH, typeBytes(INFO(LEFT_CHILD(p)))); }
 instruction : EXPR(rValue, ECHO)    1 { doCall(1, isStr(LEFT_CHILD(p)) ? "prints" : "printi", typeBytes(INFO(LEFT_CHILD(p)))); }
 
