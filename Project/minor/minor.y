@@ -405,11 +405,7 @@ static Node *varNode(Node *qual, Node *cons, Node *var, Node *value) {
                 yyerror(buf);
             }
         }
-    } else if (!isForw(typ) && isConst(typ)) {
-        sprintf(buf, "[Non Forward Constant '%s' is not initialized]", id);
-        yyerror(buf);
     }
-
     INFO(var) = typ;
     varPut(var);
     decVar(typ, id, sz, value); 

@@ -325,8 +325,8 @@ void decVar(int typ, char *id, Node *sz, Node *val) {
             fprintf(yyout, pfBSS pfALIGN pfLABEL pfBYTE, id, typeBytes(typ));
             return;
         }
-    /* Initialized */
-    } else if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfOBJ);
+    }
+    if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfOBJ);
 
     if (isConst(typ)) fprintf(yyout, pfRODATA pfALIGN pfLABEL, id);
     else fprintf(yyout, pfDATA pfALIGN pfLABEL, id);
