@@ -199,7 +199,11 @@ rOr         : rValue                    1 { fprintf(yyout, pfDUP pfJNZ pfTRASH, 
 rValue      : PTR(lValue)
 rValue      : LOAD(lLoad)
 rValue      : call
-rValue      : RINDEX(call, rValue)      1 { if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p))); fprintf(yyout, pfADD pfLOAD); }
+rValue      : RINDEX(call, rValue)      1 {
+    if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p)));
+    fprintf(yyout, pfADD);
+    fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD); 
+}
 
 %! Assignment Start
 rValue      : ASSIGN(rCopy, lStore)
