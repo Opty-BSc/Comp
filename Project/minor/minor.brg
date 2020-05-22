@@ -193,37 +193,37 @@ rValue      : NE(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfNE); }
 rValue      : EQ(rValue, rValue)        1 { preCmp(p); fprintf(yyout, pfEQ); }
 rValue      : NOT(rValue)               1 { fprintf(yyout, pfIMM pfEQ, 0); }
 rValue      : AND(rAnd, rValue)         1 { fprintf(yyout, pfLABEL, mklbl(PLACE(LEFT_CHILD(p)))); }
-rAnd        : rValue                    1 { fprintf(yyout, pfCOPY pfJZ pfTRASH, mklbl(PLACE(p) = ++lbl), typeBytes(INFO(p))); }
+rAnd        : rValue                    1 { fprintf(yyout, pfDUP pfJZ pfTRASH, mklbl(PLACE(p) = ++lbl), typeBytes(INFO(p))); }
 rValue      : OR(rOr, rValue)           1 { fprintf(yyout, pfLABEL, mklbl(PLACE(LEFT_CHILD(p)))); }
-rOr         : rValue                    1 { fprintf(yyout, pfCOPY pfJNZ pfTRASH, mklbl(PLACE(p) = ++lbl), typeBytes(INFO(p))); }
+rOr         : rValue                    1 { fprintf(yyout, pfDUP pfJNZ pfTRASH, mklbl(PLACE(p) = ++lbl), typeBytes(INFO(p))); }
 rValue      : PTR(lValue)
 rValue      : LOAD(lLoad)
 rValue      : call
-rValue      : RINDEX(call, rValue)      1 { fprintf(yyout, pfIMM pfMUL pfADD pfLOAD, eleBytes(INFO(LEFT_CHILD(p)))); }
+rValue      : RINDEX(call, rValue)      1 { if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p))); fprintf(yyout, pfADD pfLOAD); }
 
 %! Assignment Start
 rValue      : ASSIGN(rCopy, lStore)
-rCopy       : rValue                    1 { fprintf(yyout, pfCOPY); }
+rCopy       : rValue                    1 { fprintf(yyout, pfDUP); }
 
 %! Possible Ptr Arithmetic
 %! Var +:= Literal
-rValue      : ASSIGN(ADD(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfCOPY pfINCR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
+rValue      : ASSIGN(ADD(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfDUP pfINCR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
 
 %! Var -:= Literal
-rValue      : ASSIGN(SUB(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfCOPY pfDECR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
+rValue      : ASSIGN(SUB(LOAD(aV), aT), lValue) eqVarL { fprintf(yyout, pfDUP pfDECR pfLOAD, assArithBytes(INFO(RIGHT_CHILD(p))) * RIGHT_CHILD(LEFT_CHILD(p))->value.i); }
 
 %! No Ptr Arithmetic (Yacc ensures Var != Array on '+' Right Side)
 %! Var := Literal + Var
-rValue      : ASSIGN(ADD(aT, LOAD(aV)), lValue) eqVarR { fprintf(yyout, pfCOPY pfINCR pfLOAD, LEFT_CHILD(LEFT_CHILD(p))->value.i); }
+rValue      : ASSIGN(ADD(aT, LOAD(aV)), lValue) eqVarR { fprintf(yyout, pfDUP pfINCR pfLOAD, LEFT_CHILD(LEFT_CHILD(p))->value.i); }
 
 %! Indexed Var +:= Literal
-rValue      : ASSIGN(ADD(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfCOPY pfINCR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+rValue      : ASSIGN(ADD(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfDUP pfINCR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
 
 %! Indexed Var -:= Literal
-rValue      : ASSIGN(SUB(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfCOPY pfDECR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+rValue      : ASSIGN(SUB(LOAD(aI), aT), lValue) eqVarIL { fprintf(yyout, pfDUP pfDECR, RIGHT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
 
 %! Indexed Var := Literal + Indexed Var
-rValue      : ASSIGN(ADD(aT, LOAD(aI)), lValue) eqVarIR { fprintf(yyout, pfCOPY pfINCR, LEFT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
+rValue      : ASSIGN(ADD(aT, LOAD(aI)), lValue) eqVarIR { fprintf(yyout, pfDUP pfINCR, LEFT_CHILD(LEFT_CHILD(p))->value.i); fprintf(yyout, isStr(LEFT_CHILD(RIGHT_CHILD(p))) ? pfLDCHR : pfLOAD); }
 
 aV: ADDR(ID)
 aV: LOCAL(ID)
