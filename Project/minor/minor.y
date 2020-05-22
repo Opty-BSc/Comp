@@ -15,7 +15,7 @@ extern int yyparse();
 extern int yylex();
 extern int yyselres;
 extern void doMain(int enter, Node *body);
-extern void doFunc(int typ, char *id, int enter, Node *params, Node *body);
+extern void doFunc(int typ, char *id, int enter, Node *body);
 extern void decVar(int typ, char *id, Node *sz, Node *val);
 /* In File Declarations */
 static Node *nilNodeT(int tok, int info);
@@ -156,7 +156,7 @@ function    : FUNCTION qualifier fType ID   { retType = INFO($3); IDpush(); }
     $$ = binNode(FUNC, binNode(F_HEAD, binNode(F_LBL, $2, binNode(F_ID, $3, strNode(ID, $4))), $6), $8);
     if (OP_LABEL($2) == FORWARD && OP_LABEL($8) != DONE) yyerror("[Forward Function must not have a Body]");
     else if (OP_LABEL($2) != FORWARD && OP_LABEL($8) == DONE) yyerror("[Function with empty Body must be Forward]");
-    else doFunc(INFO($2) + INFO($3), $4, -pos, $6, $8);
+    else doFunc(INFO($2) + INFO($3), $4, -pos, $8);
     poscnt = pos = 0; retType = _INT; IDpop();
 }           ;
 
@@ -180,8 +180,8 @@ body        : vSEQ iSEQOPT iLast    { $$ = binNode(BODY, $1, binNode(BLOCK, $2, 
             ;
 
 vSEQ        :                       { pos = 0; $$ = nilNodeT(NIL, pos); }
-            | vSEQ variable ';'     { pos -= typeBytes(INFO($2)); varPut($2); $$ = binNode(VARS, $2, $1); }
-            | vSEQ error ';'        { $$ = binNode(VARS, nilNode(ERROR), $1); }
+            | vSEQ variable ';'     { pos -= typeBytes(INFO($2)); varPut($2); $$ = binNode(VARS, $1, $2); }
+            | vSEQ error ';'        { $$ = binNode(VARS, $1, nilNode(ERROR)); }
             ;
 
 iBlock      : { blck++; } iSEQOPT iLast { blck--; $$ = binNode(BLOCK, $2, $3); }

@@ -32,7 +32,7 @@ static void popExtern(char *id);
 static void decExterns();
 static int pos(char *id);
 void doMain(int enter, Node *body);
-void doFunc(int typ, char *id, int enter, Node *params, Node *body);
+void doFunc(int typ, char *id, int enter, Node *body);
 void decVar(int typ, char *id, Node *sz, Node *val);
 static void setPtr(Node *p, int sz);
 static void Str(char *s);
@@ -56,22 +56,21 @@ static void yytrace(NODEPTR_TYPE p, int eruleno, int cost, int bcost);
 %%
 
 s: BODY(varS, iBlock)
-s: varS
 s: litS
 s: intS
 
-%! Local Declarations Start
-varS        : VARS(V_TYPE(ARRAY, V_ID(ID, V_DIM)), varS)    1 {
-    Node *id = RIGHT_CHILD(LEFT_CHILD(p));
+%! Local Vars Start
+varS        : VARS(varS, V_TYPE(ARRAY, V_ID(ID, V_DIM)))    1 {
+    Node *id = RIGHT_CHILD(RIGHT_CHILD(p));
     fprintf(yyout, pfIMM pfALLOC pfSP, INT_SZ * RIGHT_CHILD(id)->value.i);
     fprintf(yyout, pfLOCA, pos(LEFT_CHILD(id)->value.s));
 }
-varS        : VARS(V_TYPE(type, V_ID(ID, NIL)), varS)
+varS        : VARS(varS, V_TYPE(type, V_ID(ID, NIL)))
 varS        : NIL
 type        : NUMBER
 type        : STRING
 type        : ARRAY
-%! Local Declarations End
+%! Local Vars End
 
 %! Literal Seq Start
 litS        : LITERALS(litS, INT)   1 { fprintf(yyout, pfCHAR, UC(RIGHT_CHILD(p)->value.i)); }
@@ -288,7 +287,7 @@ void doMain(int enter, Node *body) {
     decExterns();
 }
 
-void doFunc(int typ, char *id, int enter, Node *params, Node *body) {
+void doFunc(int typ, char *id, int enter, Node *body) {
 
     id = mkFid(id);
     popExtern(id);
@@ -301,7 +300,6 @@ void doFunc(int typ, char *id, int enter, Node *params, Node *body) {
 
     fprintf(yyout, pfTEXT pfALIGN pfLABEL pfENTER, id, enter);
 
-    if (OP_LABEL(params) != NIL) yyselres |= yyselect(LEFT_CHILD(params));
     yyselres |= yyselect(body);
 
     fprintf(yyout, pfLEAVE pfRET);
