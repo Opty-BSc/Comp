@@ -6,7 +6,7 @@
 #include "node.h"
 #include "tabid.h"
 #include "minor.h"
-#define YYDEBUG 1
+#define YYDEBUG
 /* Declarations */
 extern int trace;
 extern int errors;

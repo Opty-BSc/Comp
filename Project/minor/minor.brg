@@ -8,6 +8,7 @@
 #include "minor.h"
 #define TRACE
 /* Declarations */
+extern int errors;
 extern int debugNode;
 extern char **yynames;
 extern char *dupStr(const char *s);
@@ -68,7 +69,6 @@ localVar    : V_TYPE(ARRAY, V_ID(ID, V_DIM))    1 {
     fprintf(yyout, pfLOCA, pos(LEFT_CHILD(RIGHT_CHILD(p))->value.s));
 }
 localVar    : V_TYPE(type, V_ID(ID, NIL))
-localVar    : ERROR
 type        : NUMBER
 type        : STRING
 type        : ARRAY
@@ -94,7 +94,6 @@ iLast       : RETURN(NIL)           1 { fprintf(yyout, pfLEAVE pfRET); }
 iLast       : RETURN(rValue)        1 { fprintf(yyout, pfPOP pfLEAVE pfRET); }
 iLast       : NIL
 
-instruction : ERROR
 instruction : EXPR(rValue, TRASH)   1 { fprintf(yyout, pfTRASH, typeBytes(INFO(LEFT_CHILD(p)))); }
 instruction : EXPR(rValue, ECHO)    1 { doCall(1, isStr(LEFT_CHILD(p)) ? "prints" : "printi", typeBytes(INFO(LEFT_CHILD(p)))); }
 
@@ -285,6 +284,7 @@ static int pos(char *id) {
 
 void doMain(int enter, Node *body) {
 
+    if (errors) return;
     char *id = mkFid("main");
 
     fprintf(yyout, pfTEXT pfALIGN pfGLOBL pfLABEL pfENTER, id, pfFUNC, id, enter);
@@ -296,6 +296,7 @@ void doMain(int enter, Node *body) {
 
 void doFunc(int typ, char *id, int enter, Node *body) {
 
+    if (errors) return;
     id = mkFid(id);
     popExtern(id);
 
@@ -314,6 +315,7 @@ void doFunc(int typ, char *id, int enter, Node *body) {
 
 void decVar(int typ, char *id, Node *sz, Node *val) {
 
+    if (errors) return;
     popExtern(id);
 
     if (OP_LABEL(val) == NIL) {
