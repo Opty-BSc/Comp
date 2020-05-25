@@ -30,11 +30,11 @@ static int jmp[2];
 static char *mklbl(int lb);
 static char *mkFid(char *s);
 static void popExtern(char *id);
-static void decExterns();
 static int pos(char *id);
 void doMain(int enter, Node *body);
 void doFunc(int typ, char *id, int enter, Node *body);
 void decVar(int typ, char *id, Node *sz, Node *val);
+void decExterns();
 static void setPtr(Node *p, int sz);
 static void Str(char *s);
 static void Array(Node *p, int sz);
@@ -261,7 +261,7 @@ static void popExtern(char *id) {
     }
 }
 
-static void decExterns() {
+void decExterns() {
 
     for (int i = 0; i < ecnt; i++) {
         if (externid[i]) {
@@ -290,8 +290,6 @@ void doMain(int enter, Node *body) {
     fprintf(yyout, pfTEXT pfALIGN pfGLOBL pfLABEL pfENTER, id, pfFUNC, id, enter);
     yyselres |= yyselect(body);
     fprintf(yyout, pfIMM pfPOP pfLEAVE pfRET, 0);
-
-    decExterns();
 }
 
 void doFunc(int typ, char *id, int enter, Node *body) {
@@ -318,6 +316,8 @@ void decVar(int typ, char *id, Node *sz, Node *val) {
     if (errors) return;
     popExtern(id);
 
+    if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfOBJ);
+
     if (OP_LABEL(val) == NIL) {
         if (isForw(typ)) {
             externid[ecnt++] = dupStr(id);
@@ -328,7 +328,6 @@ void decVar(int typ, char *id, Node *sz, Node *val) {
             return;
         }
     }
-    if (isPubl(typ)) fprintf(yyout, pfGLOBL, id, pfOBJ);
 
     if (isConst(typ)) fprintf(yyout, pfRODATA pfALIGN pfLABEL, id);
     else fprintf(yyout, pfDATA pfALIGN pfLABEL, id);

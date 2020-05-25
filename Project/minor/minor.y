@@ -17,6 +17,7 @@ extern int yyselres;
 extern void doMain(int enter, Node *body);
 extern void doFunc(int typ, char *id, int enter, Node *body);
 extern void decVar(int typ, char *id, Node *sz, Node *val);
+extern void decExterns();
 /* In File Declarations */
 static Node *nilNodeT(int tok, int info);
 static Node *uniNodeT(int tok, Node *left, int info);
@@ -519,6 +520,7 @@ char **yynames =
 #endif
 
 static void evaluate(Node *p) {
+    decExterns();
     if (!errors && trace) {
         printNode(p, stdout, yynames);
         if (!yyselres) printf("selection successful\n");
