@@ -1,0 +1,7 @@
+program
+function forward number factorial number a done
+start
+    number a;
+    "Insira um Nr:\n>>> "! a := ?;
+    "Factorial: "! factorial(a)! "\n"!
+end

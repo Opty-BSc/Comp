@@ -1,0 +1,14 @@
+module
+function public number factorial number a do
+    number r;
+
+    if a < 2 then
+        if a < 0 then return -1 fi
+        return 1
+    fi
+
+    for r := 1 until a < 2 step a := a - 1 do
+        r := r * a;
+    done
+    return r
+end
