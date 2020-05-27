@@ -1,0 +1,7 @@
+program
+function forward void printlni number i done
+start
+    number i;
+    "Intrudoz o Nr:\n>>> "! i := ?;
+    "Nr Guardado: "! printlni(i);
+end

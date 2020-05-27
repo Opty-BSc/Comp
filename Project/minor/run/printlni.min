@@ -1,0 +1,4 @@
+module
+function public void printlni number i do
+    i! "\n"!
+end

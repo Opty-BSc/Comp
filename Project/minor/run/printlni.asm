@@ -1,11 +1,11 @@
 ; GLOBL
-global	$_printlns:function
+global	$_printlni:function
 ; TEXT
 segment	.text
 ; ALIGN
 align	4
 ; LABEL
-$_printlns:
+$_printlni:
 ; ENTER
 	push	ebp
 	mov	ebp, esp
@@ -13,7 +13,7 @@ $_printlns:
 ; LOCV
 	push	dword [ebp+8]
 ; CALL
-	call	$_prints
+	call	$_printi
 ; TRASH
 	add	esp, 4
 ; PUSH
@@ -42,5 +42,7 @@ segment	.text
 	leave
 ; RET
 	ret
+; EXTRN
+extern	$_printi
 ; EXTRN
 extern	$_prints

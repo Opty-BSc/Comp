@@ -1,4 +1,0 @@
-module
-function public void printlns string s do
-    s! "\n"!
-end
