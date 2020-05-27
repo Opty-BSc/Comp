@@ -1,0 +1,13 @@
+program
+function forward string readln string s; number i done
+start
+    string a;
+    string b;
+    number i;
+    "Tamanho Max. das Strings:\n>>> "! i := ?;
+    a # i;
+    b # i;
+    "String (a):\n>>> "! readln(a, i);
+    "String (b):\n>>> "! readln(b, i);
+    "String Concatenada: "! a.b! "\n"!
+end

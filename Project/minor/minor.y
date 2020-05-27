@@ -272,6 +272,9 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
             | '-' rValue %prec UMINUS   { $$ = uniNode(UMINUS, $2);
                                           if (isInt($2)) INFO($$) = _INT;
                                           else yyerror("[Invalid Type to (Symmetrical) '-']"); }
+            | rValue '.' rValue         { $$ = binNode('.', $1, $3);
+                                          if (isStr($1) && isStr($3)) INFO($$) = _STR;
+                                          else yyerror("[Invalid Types to '.']"); }
             | rValue '^' rValue         { $$ = binNode('^', $1, $3);
                                           if (isInt($1) && isInt($3)) INFO($$) = _INT;
                                           else yyerror("[Invalid Types to '^']"); }

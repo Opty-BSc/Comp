@@ -79,7 +79,7 @@ H           [A-Fa-f0-9]
 <CZ>\'(\\[\\']|[^\\])\' { yylval.c = yytext[yyleng -2];       return CHAR; }
 <CZ>\'\\{H}{H}?\'       { yylval.c = strtoi(yytext + 2, 16); return CHAR; }
 
-<CZ>[-+*/%^:=<>~|&~?#\[\]();:!,]        return yytext[0];
+<CZ>[-+*/%^:=<>~|&~?#\[\]();:!,.]       return yytext[0];
 <CZ>[\ \n\r\t]+     /* Whitespaces */   ;
 <CZ>.               /*  Something  */   { yyerror("Unknown Character"); }
 

@@ -1,0 +1,22 @@
+module
+function forward number strlen string buf done;
+function public string cats string b; string a do
+    string s;
+    number i;
+    number la;
+    number lb;
+    la := strlen(a);
+    lb := strlen(b);
+    s # (la + lb + 1);
+
+    for i := 0 until i = la step i := i + 1 do
+        s[i] := a[i];
+    done
+
+    for i := 0 until i = lb step i := i + 1 do
+        s[la + i] := b[i];
+    done
+
+    s[la + lb] := 0;
+    return s
+end

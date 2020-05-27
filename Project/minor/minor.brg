@@ -52,7 +52,7 @@ static void yytrace(NODEPTR_TYPE p, int eruleno, int cost, int bcost);
 %}
 %include "y.tab.h"
 %term TRASH = ';' ECHO = '!' ALLOC = '#' INPUT = '?'
-%term ADD = '+' SUB = '-' MUL = '*' DIV = '/' POW = '^' MOD = '%'
+%term ADD = '+' SUB = '-' MUL = '*' DIV = '/' POW = '^' CAT = '.' MOD = '%'
 %term LT = '<' GT = '>' EQ = '=' NOT = '~' AND = '&' OR = '|'
 %%
 
@@ -181,6 +181,7 @@ rValue      : LITSEQ(litStart, litS)    1 { fprintf(yyout, pfCHAR pfTEXT pfADDR,
 litStart    : START                     1 { fprintf(yyout, pfRODATA pfALIGN pfLABEL, mklbl(++lbl)); }
 rValue      : INPUT                     1 { doCall(1, "readi", 0); }
 rValue      : UMINUS(rValue)            1 { fprintf(yyout, pfNEG); }
+rValue      : CAT(rValue, rValue)       1 { doCall(1, "cats", 2 * pfWORD); }
 rValue      : ADD(rValue, rValue)       1 { addArith(p); }
 rValue      : SUB(rValue, rValue)       1 { subArith(p); }
 rValue      : MUL(rValue, rValue)       1 { fprintf(yyout, pfMUL); }
