@@ -204,6 +204,8 @@ instruction : IF rValue                                 { if (!isInt($2)) yyerro
             | FOR rValue UNTIL rValue                   { if (!isInt($4)) yyerror("['until' Condition Type must be an Integer]"); }
               STEP rValue
               DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(FOR, $2, binNode(STEP, binNode(DO, binNode(UNTIL, nilNode(START), $4), $10), $7)); }
+            | WHILE rValue                              { if (!isInt($2)) yyerror("['while' Condition Type must be an Integer]"); }
+              DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(WHILE, binNode(JMP, nilNode(START), $2), $6); }
             | rValue iSugar         {
     $$ = binNode(EXPR, $1, $2);
     if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]");
