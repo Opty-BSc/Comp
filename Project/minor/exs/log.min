@@ -1,9 +1,0 @@
-program
-function forward number log number b; number a done
-start
-    number b;
-    number a;
-    "Insira a Base:\n>>> "! b := ?;
-    "Insira o Nr:\n>>> "! a := ?;
-    "Log: "! log(b, a)! "\n"!
-end
