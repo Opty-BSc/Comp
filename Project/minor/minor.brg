@@ -207,6 +207,11 @@ rValue      : RINDEX(call, rValue)      1 {
     fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD); 
 }
 
+rValue      : PRE_INCR(lValue)          1 { fprintf(yyout, pfDUP pfINCR pfLOAD, 1); }
+rValue      : PRE_DECR(lValue)          1 { fprintf(yyout, pfDUP pfDECR pfLOAD, 1); }
+rValue      : POS_INCR(lValue)          1 { fprintf(yyout, pfDUP pfLOAD pfSWAP pfINCR, 1); }
+rValue      : POS_DECR(lValue)          1 { fprintf(yyout, pfDUP pfLOAD pfSWAP pfDECR, 1); }
+
 %! Assignment Start
 rValue      : ASSIGN(rCopy, lStore)
 rCopy       : rValue                    1 { fprintf(yyout, pfDUP); }

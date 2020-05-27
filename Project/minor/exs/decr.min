@@ -1,0 +1,7 @@
+program
+start
+    number i;
+    "Introduz um Nr:\n>>> "! i := ?;
+    "PosDecr: "! i--! "\n"!
+    "PreDecr: "! --i! "\n"!
+end

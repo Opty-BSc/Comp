@@ -55,7 +55,7 @@ static int poscnt;
 %nonassoc '~'
 %left NE '='
 %left '<' '>' LE GE
-%left '+' '-'
+%left '+' '-' INCR DECR
 %left '*' '/' '%'
 %right '^'
 %nonassoc PTR UMINUS '?'
@@ -75,7 +75,7 @@ static int poscnt;
 %type <n> rValueOPT lValue rValue rArgs
 %type <n> qualifier constant type fType
 
-%token NIL DECL DECLS INTS LITERALS LITSEQ JMP
+%token NIL DECL DECLS INTS LITERALS LITSEQ JMP PRE_DECR PRE_INCR POS_DECR POS_INCR
 %token VAR V_LBL V_RDONLY V_TYPE V_ID V_DIM INIT FUNC F_HEAD F_LBL F_ID PARAMS F_BODY
 %token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
 %token BODY VARS FETCH LOCAL ADDR LOAD CALL ERROR
@@ -334,6 +334,18 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
                                           else if (isConst(INFO($1))) yyerror("[Constants can not be assigned ':=']");
                                           else if (SAME_TYPE(INFO($1), $3)) INFO($$) = INFO($1);
                                           else yyerror("[Invalid Types to ':=']"); }
+            | INCR lValue               { $$ = uniNode(PRE_INCR, $2);
+                                          if (isInt($2)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to '++']"); }
+            | DECR lValue               { $$ = uniNode(PRE_DECR, $2);
+                                          if (isInt($2)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to '--']"); }
+            | lValue INCR               { $$ = uniNode(POS_INCR, $1);
+                                          if (isInt($1)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to '++']"); }
+            | lValue DECR               { $$ = uniNode(POS_DECR, $1);
+                                          if (isInt($1)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to '--']"); }
             ;
 
 rArgs       : rValue                    { $$ = binNode(ARGS, $1, nilNode(NIL)); }
