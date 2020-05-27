@@ -3,7 +3,9 @@ function forward string readln string s; number i done;
 function forward void printlns string s done
 start
     string s;
-    s # 80;
-    readln(s, 80);
-    printlns(s);
+    number i;
+    "Tamanho da String:\n>>> "! i := ?;
+    s # i;
+    "Introduz a String:\n>>> "! readln(s, i);
+    "String Guardada: "! printlns(s);
 end
