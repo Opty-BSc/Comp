@@ -1,0 +1,15 @@
+module
+function public number log number b; number a do
+
+    number r;
+
+    if a < 1 | b < 1 then return -1 fi
+
+    if a < b then return 0 fi
+
+    for r := 0 until a < 2 step r := r + 1 do
+        a := a / b;
+    done
+
+    return r
+end

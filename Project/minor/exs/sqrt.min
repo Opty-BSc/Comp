@@ -1,7 +1,0 @@
-program
-function forward number sqrt number a done
-start
-    number a;
-    "Insira um Nr:\n>>> "! a := ?;
-    "Sqrt: "! sqrt(a)! "\n"!
-end
