@@ -181,6 +181,15 @@ rValue      : LITSEQ(litStart, litS)    1 { fprintf(yyout, pfCHAR pfTEXT pfADDR,
 litStart    : START                     1 { fprintf(yyout, pfRODATA pfALIGN pfLABEL, mklbl(++lbl)); }
 rValue      : INPUT                     1 { doCall(1, "readi", 0); }
 rValue      : UMINUS(rValue)            1 { fprintf(yyout, pfNEG); }
+rValue      : BAND(rValue, rValue)      1 { fprintf(yyout, pfAND); }
+rValue      : BOR(rValue, rValue)       1 { fprintf(yyout, pfOR); }
+rValue      : BXOR(rValue, rValue)      1 { fprintf(yyout, pfXOR); }
+rValue      : BNOT(rValue, rValue)      1 { fprintf(yyout, pfNOT); }
+rValue      : ROTL(rValue, rValue)      1 { fprintf(yyout, pfROTL); }
+rValue      : ROTR(rValue, rValue)      1 { fprintf(yyout, pfROTR); }
+rValue      : SHTL(rValue, rValue)      1 { fprintf(yyout, pfSHTL); }
+rValue      : SHTRU(rValue, rValue)     1 { fprintf(yyout, pfSHTRU); }
+rValue      : SHTRS(rValue, rValue)     1 { fprintf(yyout, pfSHTRS); }
 rValue      : ADD(rValue, rValue)       1 { addArith(p); }
 rValue      : SUB(rValue, rValue)       1 { subArith(p); }
 rValue      : MUL(rValue, rValue)       1 { fprintf(yyout, pfMUL); }

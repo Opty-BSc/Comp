@@ -56,6 +56,15 @@ H           [A-Fa-f0-9]
 <CZ>">="            return GE;
 <CZ>"~="            return NE;
 <CZ>":="            return ASSIGN;
+<CZ>"&&"            return BAND;
+<CZ>"||"            return BOR;
+<CZ>"^^"            return BXOR;
+<CZ>"~~"            return BNOT;
+<CZ>">L<"           return ROTL;
+<CZ>">R<"           return ROTR;
+<CZ>"<<"            return SHTL;
+<CZ>">>"            return SHTRU;
+<CZ>">>>"           return SHTRS;
 
 <CZ>{IDENTIFIER}    { yylval.s = dupStr(yytext);         return ID; }
 <CZ>{DECIMAL}       { yylval.i = strtoi(yytext, 10);     return INT; }

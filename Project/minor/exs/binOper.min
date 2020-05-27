@@ -1,0 +1,17 @@
+program
+start
+    number a;
+    number b;
+    "Introduz um Nr (a):\n>>> "! a := ?;
+    "Introduz um Nr (b):\n>>> "! b := ?;
+
+    "BAND: "! a && b! "\n"!
+    "BOR: "! a || b! "\n"!
+    "BXOR: "! a ^^ b! "\n"!
+    "BNOT: "! a ~~ b! "\n"!
+    "ROTL: "! a >L< b! "\n"!
+    "ROTR: "! a >R< b! "\n"!
+    "SHTL: "! a << b! "\n"!
+    "SHTRU: "! a >> b! "\n"!
+    "SHTRS: "! a >>> b! "\n"!
+end

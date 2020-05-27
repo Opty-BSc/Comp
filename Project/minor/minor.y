@@ -58,6 +58,7 @@ static int poscnt;
 %left '+' '-'
 %left '*' '/' '%'
 %right '^'
+%right BAND BOR BXOR BNOT ROTL ROTR SHTL SHTRU SHTRS
 %nonassoc PTR UMINUS '?'
 %nonassoc '(' ')' '[' ']'
 
@@ -334,6 +335,33 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
                                           else if (isConst(INFO($1))) yyerror("[Constants can not be assigned ':=']");
                                           else if (SAME_TYPE(INFO($1), $3)) INFO($$) = INFO($1);
                                           else yyerror("[Invalid Types to ':=']"); }
+            | rValue BAND rValue        { $$ = binNode(BAND, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'BAND']"); }
+            | rValue BOR rValue         { $$ = binNode(BOR, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'BOR']"); }
+            | rValue BXOR rValue        { $$ = binNode(BXOR, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'BXOR']"); }
+            | rValue BNOT rValue        { $$ = binNode(BNOT, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'BNOT']"); }
+            | rValue ROTL rValue        { $$ = binNode(ROTL, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'ROTL']"); }
+            | rValue ROTR rValue        { $$ = binNode(ROTR, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'ROTR']"); }
+            | rValue SHTL rValue        { $$ = binNode(SHTL, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'SHTL']"); }
+            | rValue SHTRU rValue       { $$ = binNode(SHTRU, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'SHTRU']"); }
+            | rValue SHTRS rValue       { $$ = binNode(SHTRS, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'SHTRS']"); }
             ;
 
 rArgs       : rValue                    { $$ = binNode(ARGS, $1, nilNode(NIL)); }
