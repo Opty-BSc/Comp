@@ -66,7 +66,7 @@ static int poscnt;
 %token <s> ID STR
 %token PROGRAM MODULE END START
 %token VOID CONST NUMBER ARRAY STRING FUNCTION PUBLIC FORWARD
-%token IF THEN ELSE ELIF FI FOR UNTIL STEP DO DONE REPEAT STOP RETURN
+%token IF THEN ELSE ELIF FI FOR UNTIL STEP DO DONE REPEAT STOP RETURN WHILE
 
 %type <n> program module dSEQOPT dSEQ declaration
 %type <n> variable vDimOPT vInitOPT literal literalSEQ integerSEQ
