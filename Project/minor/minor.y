@@ -49,7 +49,7 @@ static int poscnt;
     Node *n;    /* Node Pointer */
 };
 
-%right ASSIGN
+%right ASSIGN ASSADD ASSSUB
 %left '|'
 %left '&'
 %nonassoc '~'
@@ -334,6 +334,12 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
                                           else if (isConst(INFO($1))) yyerror("[Constants can not be assigned ':=']");
                                           else if (SAME_TYPE(INFO($1), $3)) INFO($$) = INFO($1);
                                           else yyerror("[Invalid Types to ':=']"); }
+            | lValue ASSADD rValue      { $$ = binNode(ASSADD, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to '+:=']"); }
+            | lValue ASSSUB rValue      { $$ = binNode(ASSSUB, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to '-:=']"); }
             ;
 
 rArgs       : rValue                    { $$ = binNode(ARGS, $1, nilNode(NIL)); }

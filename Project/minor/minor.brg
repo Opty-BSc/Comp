@@ -157,8 +157,8 @@ rJump       : rValue                    1 { fprintf(yyout, jmp[0] ? pfJNZ : pfJZ
 %! Conditional JMPs End
 
 %! LValue Start
-lValue      : ADDR(ID)                  1 { fprintf(yyout, pfADDR, LEFT_CHILD(p)->value.s); }
-lValue      : LOCAL(ID)                 1 { fprintf(yyout, pfLOCAL, pos(LEFT_CHILD(p)->value.s)); }
+lValue      : ADDR(ID)                  1 { fprintf(yyout, pfADDR, LEFT_CHILD(p)->value.s); PLACE(p) == INT_SZ; }
+lValue      : LOCAL(ID)                 1 { fprintf(yyout, pfLOCAL, pos(LEFT_CHILD(p)->value.s)); PLACE(p) == INT_SZ; }
 lValue      : LINDEX(lLoad, rValue)     1 { if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p))); fprintf(yyout, pfADD); }
 lLoad       : lValue                    1 { fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD); }
 lLoad       : ADDR(ID)                  1 { fprintf(yyout, pfADDRV, LEFT_CHILD(p)->value.s); }
@@ -205,6 +205,21 @@ rValue      : RINDEX(call, rValue)      1 {
     if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p)));
     fprintf(yyout, pfADD);
     fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD); 
+}
+
+lCopy       : lValue                    1 {
+    fprintf(yyout, pfDUP pfDUP);
+    fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD);
+}
+rValue      : ASSADD(lCopy, rValue)     1 {
+    fprintf(yyout, pfADD pfSWAP);
+    fprintf(yyout, (PLACE(LEFT_CHILD(p)) == CH_SZ) ? pfSTCHR : pfSTORE);
+    fprintf(yyout, (PLACE(LEFT_CHILD(p)) == CH_SZ) ? pfLDCHR : pfLOAD);
+}
+rValue      : ASSSUB(lCopy, rValue)     1 {
+    fprintf(yyout, pfSUB pfSWAP);
+    fprintf(yyout, (PLACE(LEFT_CHILD(p)) == CH_SZ) ? pfSTCHR : pfSTORE);
+    fprintf(yyout, (PLACE(LEFT_CHILD(p)) == CH_SZ) ? pfLDCHR : pfLOAD);
 }
 
 %! Assignment Start

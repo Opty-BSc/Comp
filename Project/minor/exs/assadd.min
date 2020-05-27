@@ -1,0 +1,9 @@
+program
+start
+    number a;
+    number b;
+    "Introduz um Nr (a):\n>>> "! a := ?;
+    "Introduz um Nr (b):\n>>> "! b := ?;
+    "Sum a +:= b: "! a +:= b! "\n"!
+    "Sum Guardada: "! a! "\n"!
+end
