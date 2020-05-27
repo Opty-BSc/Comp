@@ -75,7 +75,7 @@ static int poscnt;
 %type <n> rValueOPT lValue rValue rArgs
 %type <n> qualifier constant type fType
 
-%token NIL DECL DECLS INTS LITERALS LITSEQ JMP
+%token NIL DECL DECLS INTS LITERALS LITSEQ JMP DOW DOW_BODY
 %token VAR V_LBL V_RDONLY V_TYPE V_ID V_DIM INIT FUNC F_HEAD F_LBL F_ID PARAMS F_BODY
 %token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
 %token BODY VARS FETCH LOCAL ADDR LOAD CALL ERROR
@@ -204,9 +204,11 @@ instruction : IF rValue                                 { if (!isInt($2)) yyerro
             | FOR rValue UNTIL rValue                   { if (!isInt($4)) yyerror("['until' Condition Type must be an Integer]"); }
               STEP rValue
               DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(FOR, $2, binNode(STEP, binNode(DO, binNode(UNTIL, nilNode(START), $4), $10), $7)); }
-            | WHILE rValue                              { if (!isInt($2)) yyerror("['while' Condition Type must be an Integer]"); }
-              DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(WHILE, binNode(JMP, nilNode(START), $2), $6); }
-            | rValue iSugar         {
+            | DO { cicl++; } iBlock { cicl--; }
+              WHILE rValue          {
+    if (!isInt($6)) yyerror("['while' Condition Type must be an Integer]");
+    $$ = binNode(DOW, nilNode(START), binNode(DOW_BODY, $3, $6));
+}           | rValue iSugar         {
     $$ = binNode(EXPR, $1, $2);
     if (isVoid($1) && OP_LABEL($2) == '!') yyerror("[Void Expression can not be printed]");
 }           | lValue '#' rValue ';' {

@@ -126,17 +126,20 @@ iLast       : REPEAT    1 { fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][1])); }
 iLast       : STOP      1 { fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][2])); }
 %! For End
 
-%! While Start
-instruction : WHILE(JMP(iWhileCond, rJump), iBlock) 1 {
-    fprintf(yyout, pfJMP, mklbl(ciclbl[ciccnt][1]));
+%! Do While Start
+instruction : DOW(iDoWStart, DOW_BODY(iDoWBlock, rJump))    1 {
     fprintf(yyout, pfLABEL, mklbl(ciclbl[ciccnt--][2]));
 }
-iWhileCond  : START                                 1 {
-    fprintf(yyout, pfLABEL, mklbl(ciclbl[++ciccnt][1] = ++lbl));
-    jmp[0] = 0; jmp[1] = ciclbl[ciccnt][2] = ++lbl;
+iDoWStart   : START     1 {
+    fprintf(yyout, pfLABEL, mklbl(ciclbl[++ciccnt][0] = ++lbl));
+    ciclbl[ciccnt][1] = ++lbl;
+    ciclbl[ciccnt][2] = ++lbl;
 }
-
-%! While End
+iDoWBlock   : iBlock    1 {
+    fprintf(yyout, pfLABEL, mklbl(ciclbl[ciccnt][1]));
+    jmp[0] = 1; jmp[1] = ciclbl[ciccnt][0];
+}
+%! Do While End
 
 %! Conditions Start
 instruction : CONDITION(iIf, ELSES(iElifS, iElse))      1 {

@@ -2,10 +2,9 @@ program
 start
     number i;
     "Loops:\n>>> "! i := ?;
-
-    while i > 0 do
+    do
         i! "\n"!
         i := i - 1;
         if i < 1 then "Vou Sair!\n"! fi
-    done
+    while i > 0
 end
