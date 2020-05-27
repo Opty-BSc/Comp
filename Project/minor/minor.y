@@ -205,7 +205,7 @@ instruction : IF rValue                                 { if (!isInt($2)) yyerro
               STEP rValue
               DO { cicl++; } iBlock { cicl--; } DONE    { $$ = binNode(FOR, $2, binNode(STEP, binNode(DO, binNode(UNTIL, nilNode(START), $4), $10), $7)); }
             | DO { cicl++; } iBlock { cicl--; }
-              WHILE rValue          {
+              WHILE rValue ';'      {
     if (!isInt($6)) yyerror("['while' Condition Type must be an Integer]");
     $$ = binNode(DOW, nilNode(START), binNode(DOW_BODY, $3, $6));
 }           | rValue iSugar         {
