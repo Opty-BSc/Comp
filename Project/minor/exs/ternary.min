@@ -1,0 +1,6 @@
+program
+start
+    number i;
+    i := ?;
+    i ? "Hey" : "Bye"!
+end

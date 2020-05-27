@@ -58,6 +58,7 @@ static int poscnt;
 %left '+' '-'
 %left '*' '/' '%'
 %right '^'
+%nonassoc TERN
 %nonassoc PTR UMINUS '?'
 %nonassoc '(' ')' '[' ']'
 
@@ -75,7 +76,7 @@ static int poscnt;
 %type <n> rValueOPT lValue rValue rArgs
 %type <n> qualifier constant type fType
 
-%token NIL DECL DECLS INTS LITERALS LITSEQ JMP
+%token NIL DECL DECLS INTS LITERALS LITSEQ JMP TERN_COND TERN_VAL
 %token VAR V_LBL V_RDONLY V_TYPE V_ID V_DIM INIT FUNC F_HEAD F_LBL F_ID PARAMS F_BODY
 %token CONDITION ELIFS ELSES INSTRS BLOCK EXPR ARGS LINDEX RINDEX
 %token BODY VARS FETCH LOCAL ADDR LOAD CALL ERROR
@@ -272,6 +273,9 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
             | '-' rValue %prec UMINUS   { $$ = uniNode(UMINUS, $2);
                                           if (isInt($2)) INFO($$) = _INT;
                                           else yyerror("[Invalid Type to (Symmetrical) '-']"); }
+            | rValue '?' rValue ':' rValue %prec TERN   { $$ = binNode(TERN_COND, $1, binNode(TERN_VAL, $3, $5));
+                                          if (isInt($1) && NAKED_TYPE(INFO($3)) == NAKED_TYPE(INFO($5))) INFO($$) = INFO($3);
+                                          else yyerror("[Invalid Types to 'Ternary']"); }
             | rValue '^' rValue         { $$ = binNode('^', $1, $3);
                                           if (isInt($1) && isInt($3)) INFO($$) = _INT;
                                           else yyerror("[Invalid Types to '^']"); }

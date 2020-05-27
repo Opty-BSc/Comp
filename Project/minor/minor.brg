@@ -26,6 +26,8 @@ static int ciccnt = -1;
 static int condlbl[10][2];
 static int condcnt = -1;
 static int jmp[2];
+static int terncnt = -1;
+static int tern[10];
 /* Function Declarations */
 static char *mklbl(int lb);
 static char *mkFid(char *s);
@@ -205,6 +207,14 @@ rValue      : RINDEX(call, rValue)      1 {
     if ((PLACE(p) = eleBytes(INFO(LEFT_CHILD(p)))) > 1) fprintf(yyout, pfIMM pfMUL, (int)(PLACE(p)));
     fprintf(yyout, pfADD);
     fprintf(yyout, (PLACE(p) == CH_SZ) ? pfLDCHR : pfLOAD); 
+}
+
+rValue      : TERN_COND(rTernCond, TERN_VAL(rTernVal, rValue))  1 { fprintf(yyout, pfLABEL, mklbl(tern[terncnt--])); }
+rTernCond   : rValue    1 { fprintf(yyout, pfJZ, mklbl(tern[++terncnt] = ++lbl)); }
+rTernVal    : rValue    1 {
+    int plb = tern[terncnt];
+    fprintf(yyout, pfJMP, mklbl(tern[terncnt] = ++lbl));
+    fprintf(yyout, pfLABEL, mklbl(plb));
 }
 
 %! Assignment Start
