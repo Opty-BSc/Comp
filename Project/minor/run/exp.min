@@ -1,4 +1,0 @@
-module
-function public number exp number a; number e do
-    return a * 10 ^ e
-end

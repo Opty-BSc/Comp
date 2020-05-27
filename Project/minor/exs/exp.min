@@ -1,9 +1,0 @@
-program
-function forward number exp number a; number e done
-start
-    number a;
-    number e;
-    "Insira a Base:\n>>> "! a := ?;
-    "Insira o Exp:\n>>> "! e := ?;
-    "Exp: "! exp(a, e)! "\n"!
-end
