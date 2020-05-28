@@ -217,7 +217,7 @@ instruction : IF rValue                                 { if (!isInt($2)) yyerro
     else if (isInt($1)) yyerror("['#' Left-value Type must be a Pointer]");
     else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]");
 }           | ASSERT rValue ';'     {
-    $$ = binNode(ASSERT, nilNode(START), $2); PLACE(LEFT_CHILD($$)) = yylineno;
+    $$ = binNode(ASSERT, nilNode(START), $2); INFO($$) = yylineno;
     if (!isInt($2)) yyerror("['assert' Condition Type must be an Integer]");
 }           ;
 

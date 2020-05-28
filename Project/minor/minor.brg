@@ -18,6 +18,8 @@ extern FILE *yyout;
 /* Variable Declarations */
 int yyselres = 0;
 static int lbl;
+static int asslbl[10][2];
+static int asscnt;
 static char *externid[100];
 static int ecnt;
 static int chLoad;
@@ -26,8 +28,6 @@ static int ciccnt = -1;
 static int condlbl[10][2];
 static int condcnt = -1;
 static int jmp[2];
-static int asslbl;
-static int asslin;
 /* Function Declarations */
 void lblAssert();
 static char *mklbl(int lb);
@@ -150,8 +150,8 @@ iElse       : NIL
 %! Conditions End
 
 %! Assert Start
-instruction : ASSERT(iAssStart, rJump)
-iAssStart   : START                     1 { asslin = PLACE(p); jmp[0] = 0; jmp[1] = asslbl = ++lbl; }
+instruction : ASSERT(iAssStart, rJump)  1 { asslbl[asscnt++][1] = INFO(p); }
+iAssStart   : START                     1 { jmp[0] = 0; jmp[1] = asslbl[asscnt][0] = ++lbl; }
 %! Assert End
 
 %! Conditional JMPs Start
@@ -463,19 +463,23 @@ static int eqVarIR(Node *p) {
 
 void lblAssert() {
 
-    if (asslbl) {
-        fprintf(yyout, pfLABEL, mklbl(asslbl));
+    if (!asscnt) return;
+    
+    char buf[80];
+    int elb = ++lbl;
+
+    for (int i = 0; i < asscnt; i++) {
+        fprintf(yyout, pfLABEL, mklbl(asslbl[i][0]));
         fprintf(yyout, pfRODATA pfALIGN pfLABEL, mklbl(++lbl));
-
-        char buf[80];
-        sprintf(buf, "assert failed: line %d\n", asslin);
+        sprintf(buf, "assert failed: line %d\n", asslbl[i][1]);
         Str(buf);
-
         fprintf(yyout, pfTEXT pfADDR, mklbl(lbl));
-        doCall(1, "prints", pfWORD);
-        fprintf(yyout, pfIMM, 4);
-        doCall(1, "exit", 4);
+        fprintf(yyout, pfJMP, mklbl(elb));
     }
+    fprintf(yyout, pfLABEL, mklbl(elb));
+    doCall(1, "prints", pfWORD);
+    fprintf(yyout, pfIMM, 4);
+    doCall(1, "exit", 4);
 }
 
 #ifndef NOTRACE
