@@ -1,0 +1,5 @@
+program
+start
+    "Assert Arg: (0|1):\n>>> "! assert ?;
+    "Não Entrei no Assert\n"!
+end

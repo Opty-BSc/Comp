@@ -8,6 +8,7 @@
 #include "minor.h"
 #define YYDEBUG 1
 /* Declarations */
+extern int yylineno;
 extern int trace;
 extern int errors;
 extern int yyerror(char *s);
@@ -18,6 +19,7 @@ extern void doMain(int enter, Node *body);
 extern void doFunc(int typ, char *id, int enter, Node *body);
 extern void decVar(int typ, char *id, Node *sz, Node *val);
 extern void decExterns();
+extern void lblAssert();
 /* In File Declarations */
 static Node *nilNodeT(int tok, int info);
 static Node *uniNodeT(int tok, Node *left, int info);
@@ -65,7 +67,7 @@ static int poscnt;
 %token <i> INT
 %token <c> CHAR
 %token <s> ID STR
-%token PROGRAM MODULE END START
+%token PROGRAM MODULE END START ASSERT
 %token VOID CONST NUMBER ARRAY STRING FUNCTION PUBLIC FORWARD
 %token IF THEN ELSE ELIF FI FOR UNTIL STEP DO DONE REPEAT STOP RETURN
 
@@ -214,6 +216,9 @@ instruction : IF rValue                                 { if (!isInt($2)) yyerro
     else if (isConst(INFO($1))) yyerror("['#' Left-value must not be a Constant]");
     else if (isInt($1)) yyerror("['#' Left-value Type must be a Pointer]");
     else if (!isInt($3)) yyerror("['#' Expression Type must be an Integer]");
+}           | ASSERT rValue ';'     {
+    $$ = binNode(ASSERT, nilNode(START), $2); PLACE(LEFT_CHILD($$)) = yylineno;
+    if (!isInt($2)) yyerror("['assert' Condition Type must be an Integer]");
 }           ;
 
 iElifSEQ    :                   { $$ = nilNodeT(NIL, -1); }
@@ -524,6 +529,7 @@ char **yynames =
 #endif
 
 static void evaluate(Node *p) {
+    lblAssert();
     decExterns();
     if (!errors && trace) {
         printNode(p, stdout, yynames);
