@@ -474,7 +474,7 @@ void lblAssert() {
         fprintf(yyout, pfTEXT pfADDR, mklbl(lbl));
         doCall(1, "prints", pfWORD);
         fprintf(yyout, pfIMM, 4);
-        doCall(1, "exit", pfWORD);
+        doCall(1, "exit", 4);
     }
 }
 
