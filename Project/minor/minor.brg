@@ -174,6 +174,7 @@ argS        : ARGS(rValue, argS)        1 { PLACE(p) = PLACE(RIGHT_CHILD(p)) + t
 argS        : NIL                       1 { PLACE(p) = 0; }
 %! Function Call End
 
+rValue      : BOR(rValue, rValue)       1 { fprintf(yyout, pfOR); }
 rValue      : INT                       1 { fprintf(yyout, pfIMM, p->value.i); }
 rValue      : CHAR                      1 { fprintf(yyout, pfIMM, p->value.i); }
 rValue      : STR                       1 { fprintf(yyout, pfRODATA pfALIGN pfLABEL, mklbl(++lbl)); Str(p->value.s); fprintf(yyout, pfTEXT pfADDR, mklbl(lbl)); }

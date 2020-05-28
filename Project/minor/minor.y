@@ -53,6 +53,7 @@ static int poscnt;
 %left '|'
 %left '&'
 %nonassoc '~'
+%right BOR
 %left NE '='
 %left '<' '>' LE GE
 %left '+' '-'
@@ -334,6 +335,9 @@ rValue      : lValue                    { if (isLV($1)) $$ = uniNodeT(LOAD, $1, 
                                           else if (isConst(INFO($1))) yyerror("[Constants can not be assigned ':=']");
                                           else if (SAME_TYPE(INFO($1), $3)) INFO($$) = INFO($1);
                                           else yyerror("[Invalid Types to ':=']"); }
+            | rValue BOR rValue         { $$ = binNode(BOR, $1, $3);
+                                          if (isInt($1) && isInt($3)) INFO($$) = _INT;
+                                          else yyerror("[Invalid Types to 'BOR']"); }
             ;
 
 rArgs       : rValue                    { $$ = binNode(ARGS, $1, nilNode(NIL)); }

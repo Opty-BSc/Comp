@@ -56,6 +56,7 @@ H           [A-Fa-f0-9]
 <CZ>">="            return GE;
 <CZ>"~="            return NE;
 <CZ>":="            return ASSIGN;
+<CZ>"or"            return BOR;
 
 <CZ>{IDENTIFIER}    { yylval.s = dupStr(yytext);         return ID; }
 <CZ>{DECIMAL}       { yylval.i = strtoi(yytext, 10);     return INT; }

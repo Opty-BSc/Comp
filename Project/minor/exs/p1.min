@@ -1,0 +1,7 @@
+program
+function forward number exemplo number i done
+start
+    number i;
+    "Introduza um Nr:\n>>> "! i := ?;
+    "Nr >= 6: "! exemplo(i)! "\n"!
+end
